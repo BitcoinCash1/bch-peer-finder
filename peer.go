@@ -381,7 +381,8 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	feefilter >100000    →  +25   (high filter, barely counts)
 //	latency penalty      →  -ms/2
 //	empty mempool penalty→  -200  (when ≥20 good peers confirm mempool is filled)
-func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]struct{ min, max int }, mempoolFilled bool) int {
+//	below-avg mempool    →  up to -500  (scaled by how far below mean, if mean > 50)
+func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]struct{ min, max int }, mempoolFilled bool, mempoolMean int) int {
 	if !r.HandshakeOK || !isBCHUserAgent(r.UserAgent) {
 		return 0
 	}
@@ -471,6 +472,15 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 	// Penalise peers with an empty mempool when the network clearly has transactions.
 	if mempoolFilled && r.MempoolCount == 0 {
 		score -= 200
+	}
+
+	// Penalise peers significantly below the network mean mempool size.
+	// Only kicks in when the mean is meaningful (>50 txs) to avoid noise
+	// during low-traffic periods. Penalty scales linearly: a peer at 0 when
+	// mean=500 gets the full -500; a peer at half the mean gets -250.
+	if mempoolMean > 50 && r.MempoolCount < mempoolMean {
+		deficit := mempoolMean - r.MempoolCount
+		score -= (deficit * 500) / mempoolMean
 	}
 
 	if score < 0 {

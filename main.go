@@ -362,7 +362,7 @@ func main() {
 			}
 		}
 
-		r.Score = computeScore(&r, ref, nil, false) // temp score
+		r.Score = computeScore(&r, ref, nil, false, 0) // temp score
 		if r.HandshakeOK {
 			allPeers = append(allPeers, r)
 			if r.Score > 0 {
@@ -404,9 +404,25 @@ func main() {
 	}
 	mempoolFilled := nonEmptyMempool >= 20
 
+	// Compute mean mempool count across peers that reported at least one tx,
+	// so peers with empty mempools don't drag the baseline down.
+	var mempoolMean int
+	if mempoolFilled {
+		sum, n := 0, 0
+		for _, r := range good {
+			if r.MempoolCount > 0 {
+				sum += r.MempoolCount
+				n++
+			}
+		}
+		if n > 0 {
+			mempoolMean = sum / n
+		}
+	}
+
 	// Re-score with final reference height, version stats, and mempool signal.
 	for i := range good {
-		good[i].Score = computeScore(&good[i], refHeight, versionStats, mempoolFilled)
+		good[i].Score = computeScore(&good[i], refHeight, versionStats, mempoolFilled, mempoolMean)
 	}
 
 	fmt.Printf("\ncrawl complete — %d peers evaluated, %d scored as BCH-good, tip≈%d\n",
