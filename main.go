@@ -352,7 +352,7 @@ func main() {
 			}
 		}
 
-		r.Score = computeScore(&r, ref, nil) // temp score
+		r.Score = computeScore(&r, ref, nil, false) // temp score
 		if r.HandshakeOK {
 			allPeers = append(allPeers, r)
 			if r.Score > 0 {
@@ -383,9 +383,20 @@ func main() {
 	}
 
 	refHeight := heights.Median()
-	// Re-score with final reference height and version stats
+
+	// Detect whether the network mempool is currently non-empty:
+	// if at least 20 good peers report a non-zero mempool count, treat it as filled.
+	nonEmptyMempool := 0
+	for _, r := range good {
+		if r.MempoolCount > 0 {
+			nonEmptyMempool++
+		}
+	}
+	mempoolFilled := nonEmptyMempool >= 20
+
+	// Re-score with final reference height, version stats, and mempool signal.
 	for i := range good {
-		good[i].Score = computeScore(&good[i], refHeight, versionStats)
+		good[i].Score = computeScore(&good[i], refHeight, versionStats, mempoolFilled)
 	}
 
 	fmt.Printf("\ncrawl complete — %d peers evaluated, %d scored as BCH-good, tip≈%d\n",

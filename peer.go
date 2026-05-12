@@ -358,10 +358,8 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	addrs shared         →  + min(2*n, 200)  (signals willingness to gossip)
 //	protocol ≥ 70015     →  +100
 //	latency penalty      →  -ms/5
-//	addrs shared         →  + min(2*n, 200)  (signals willingness to gossip)
-//	protocol ≥ 70015     →  +100
-//	latency penalty      →  -ms/5
-func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]struct{ min, max int }) int {
+//	empty mempool penalty→  -200  (when ≥20 good peers confirm mempool is filled)
+func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]struct{ min, max int }, mempoolFilled bool) int {
 	if !r.HandshakeOK || !isBCHUserAgent(r.UserAgent) {
 		return 0
 	}
@@ -431,6 +429,11 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 
 	if r.LatencyMs > 0 {
 		score -= r.LatencyMs / 5
+	}
+
+	// Penalise peers with an empty mempool when the network clearly has transactions.
+	if mempoolFilled && r.MempoolCount == 0 {
+		score -= 200
 	}
 
 	if score < 0 {
