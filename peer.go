@@ -296,22 +296,48 @@ func isBCHUserAgent(ua string) bool {
 	return false
 }
 
+// parseVersion extracts major.minor.patch from user-agent string like "/Bitcoin Cash Node:29.0.0(EB32.0)/"
+func parseVersion(ua string) (major, minor, patch int) {
+	colonIndex := strings.Index(ua, ":")
+	if colonIndex == -1 {
+		return 0, 0, 0
+	}
+	versionStr := ua[colonIndex+1:]
+	endIndex := strings.IndexAny(versionStr, "(/")
+	if endIndex != -1 {
+		versionStr = versionStr[:endIndex]
+	}
+	parts := strings.Split(versionStr, ".")
+	if len(parts) >= 1 {
+		major, _ = strconv.Atoi(parts[0])
+	}
+	if len(parts) >= 2 {
+		minor, _ = strconv.Atoi(parts[1])
+	}
+	if len(parts) >= 3 {
+		patch, _ = strconv.Atoi(parts[2])
+	}
+	return
+}
+
 // computeScore turns a probe result into a single integer for ranking.
 //
 // Heuristic (tunable in main):
 //
 //	mempool_count        →  *2  (the headline signal; well-synced ⇒ big mempool)
-//	NODE_NETWORK         →  +500
-//	NODE_BLOOM           →  +200
-//	NODE_BITCOIN_CASH    →  +300
-//	BCHN client          →  +650
-//	bchd  client         →  +500
-//	knuth  client        →  +500
+//	NODE_NETWORK         →  +700
+//	NODE_BITCOIN_CASH    →  +400
+//	BCHN client          →  +650 + version_bonus (0-100 relative to peers)
+//	bchd  client         →  +500 + version_bonus (0-100 relative to peers)
+//	knuth  client        →  +500 + version_bonus (0-100 relative to peers)
 //	tip within 6 blocks  →  +2000  (≤100 still gets +1000; >1000 zeros score)
 //	addrs shared         →  + min(2*n, 200)  (signals willingness to gossip)
 //	protocol ≥ 70015     →  +100
 //	latency penalty      →  -ms/5
-func computeScore(r *PeerResult, refHeight int32) int {
+//	addrs shared         →  + min(2*n, 200)  (signals willingness to gossip)
+//	protocol ≥ 70015     →  +100
+//	latency penalty      →  -ms/5
+func computeScore(r *PeerResult, refHeight int32, versionStats map[string]struct{ min, max int }) int {
 	if !r.HandshakeOK || !isBCHUserAgent(r.UserAgent) {
 		return 0
 	}
@@ -333,13 +359,26 @@ func computeScore(r *PeerResult, refHeight int32) int {
 	}
 
 	// Extra points for known-good BCH implementations, fully up-to-date spec.
+	var software string
 	switch {
 	case strings.Contains(strings.ToLower(r.UserAgent), "bitcoin cash node"):
 		score += 650
+		software = "bchn"
 	case strings.Contains(strings.ToLower(r.UserAgent), "bchd"):
 		score += 500
+		software = "bchd"
 	case strings.Contains(strings.ToLower(r.UserAgent), "knuth"):
 		score += 500
+		software = "knuth"
+	}
+
+	// Version bonus: relative within software (0-100 points)
+	if software != "" && versionStats != nil {
+		if stats, ok := versionStats[software]; ok && stats.max > stats.min {
+			major, _, _ := parseVersion(r.UserAgent)
+			bonus := ((major - stats.min) * 100) / (stats.max - stats.min)
+			score += bonus
+		}
 	}
 
 	if refHeight > 0 && r.StartHeight > 0 {

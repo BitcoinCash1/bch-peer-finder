@@ -89,11 +89,11 @@ Every peer that completes the handshake and looks like real BCH gets:
 ```sh
 score = mempool_count × 2
       + (mempool > 100        →  +500 )
-      + (NODE_NETWORK         →  +500 )
-      + (NODE_BITCOIN_CASH    →  +300 )
-      + (BCHN client          →  +650 )
-      + (bchd  client         →  +500 )
-      + (knuth  client        →  +500 )
+      + (NODE_NETWORK         →  +700 )
+      + (NODE_BITCOIN_CASH    →  +400 )
+      + (BCHN client          →  +650 + version_bonus (0-100 relative) )
+      + (bchd  client         →  +500 + version_bonus (0-100 relative) )
+      + (knuth  client        →  +500 + version_bonus (0-100 relative) )
       + (within 6 of tip      → +2000 ; ≤100 → +1000 ; >1000 → 0)
       + (addrs shared         → min(2n, 200))
       + (proto ≥ 70015        →  +100 )

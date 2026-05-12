@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -337,7 +338,7 @@ func main() {
 	for r := range results {
 		heights.Add(r.StartHeight)
 		ref := heights.Median()
-		r.Score = computeScore(&r, ref)
+		r.Score = computeScore(&r, ref, nil) // temp score
 		if r.HandshakeOK {
 			allPeers = append(allPeers, r)
 			if r.Score > 0 {
@@ -346,11 +347,42 @@ func main() {
 		}
 	}
 
+	// Compute version stats for relative scoring
+	versionStats := make(map[string]struct{ min, max int })
+	for _, r := range allPeers {
+		if !isBCHUserAgent(r.UserAgent) {
+			continue
+		}
+		var software string
+		uaLower := strings.ToLower(r.UserAgent)
+		switch {
+		case strings.Contains(uaLower, "bitcoin cash node"):
+			software = "bchn"
+		case strings.Contains(uaLower, "bchd"):
+			software = "bchd"
+		case strings.Contains(uaLower, "knuth"):
+			software = "knuth"
+		default:
+			continue
+		}
+		major, _, _ := parseVersion(r.UserAgent)
+		if stats, ok := versionStats[software]; ok {
+			if major < stats.min {
+				stats.min = major
+			}
+			if major > stats.max {
+				stats.max = major
+			}
+			versionStats[software] = stats
+		} else {
+			versionStats[software] = struct{ min, max int }{major, major}
+		}
+	}
+
 	refHeight := heights.Median()
-	// Re-score with final reference height (catches early evaluations that
-	// were scored before we had enough samples for a stable median).
+	// Re-score with final reference height and version stats
 	for i := range good {
-		good[i].Score = computeScore(&good[i], refHeight)
+		good[i].Score = computeScore(&good[i], refHeight, versionStats)
 	}
 
 	fmt.Printf("\ncrawl complete — %d peers evaluated, %d scored as BCH-good, tip≈%d\n",
