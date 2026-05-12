@@ -235,7 +235,7 @@ func admitPeerAddr(a PeerAddr, acceptIPv6 bool) (string, bool) {
 }
 
 // readUntilVersion drains messages until we see a `version`. Useful when peers
-// send sendaddrv2/wtxidrelay or other handshake frames before/after version.
+// send sendaddrv2 or other handshake frames before/after version.
 func readUntilVersion(conn net.Conn) (*VersionInfo, error) {
 	for i := 0; i < 10; i++ {
 		cmd, payload, err := readMessage(conn)
