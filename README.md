@@ -64,17 +64,17 @@ A typical run finishes with a console table like (example):
 
 | rank | score | mempool | height |  rtt | user-agent                         |
 | ---: | ----: | ------: | -----: | ---: | ---------------------------------- |
-|    1 | 17234 |    5821 | 899451 | 42ms | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
-|    2 | 16980 |    5743 | 899451 | 51ms | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
-|    3 | 14102 |    3892 | 899451 | 88ms | /bchd:0.22.0(EB32.0)/              |
+|    1 |  4212 |     132 | 950752 | 42ms | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
+|    2 |  4207 |     120 | 950752 | 51ms | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
+|    3 |  3937 |     119 | 950752 | 88ms | /bchd:0.22.0(EB32.0)/              |
 
 ...and a file `bch-addnodes.conf` containing (limited to `-top` flag peer results, by default 50):
 
 ```conf
-# score=5489 mempool=106 height=950733 latency=116ms ua=/Bitcoin Cash Node:29.0.0(EB32.0)/
+# score=4212 mempool=132 height=950752 latency=116ms ua=/Bitcoin Cash Node:29.0.0(EB32.0)/
 addnode=70.50.144.93:8999
 
-# score=5282 mempool=107 height=950733 latency=170ms ua=/Bitcoin Cash Node:29.0.0(EB32.0)/
+# score=4207 mempool=120 height=950752 latency=170ms ua=/Bitcoin Cash Node:29.0.0(EB32.0)/
 addnode=8.214.158.13:8363
 ```
 
