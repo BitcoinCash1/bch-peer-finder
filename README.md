@@ -44,16 +44,17 @@ go build -o bch-peer-finder .
 
 ### Flags
 
-| Flag         | Default             | Meaning                                            |
-| ------------ | ------------------- | -------------------------------------------------- |
-| `-workers`   | 80                  | Concurrent peer probes                             |
-| `-duration`  | 3m                  | Total crawl wall-clock time                        |
-| `-probe`     | 12s                 | Per-peer read window after handshake               |
-| `-top`       | 50                  | Number of peers to keep in the ranked output       |
-| `-out`       | `bch-addnodes.conf` | `addnode=`-formatted output file                   |
-| `-json`      | `bch-peers.json`    | Full JSON dump of every scored peer                |
-| `-max-known` | 50000               | Cap on the candidate address pool                  |
-| `-ipv6`      | false               | Also crawl and rank IPv6 peers (default IPv4 only) |
+| Flag           | Default             | Meaning                                            |
+| -------------- | ------------------- | -------------------------------------------------- |
+| `-workers`     | 80                  | Concurrent peer probes                             |
+| `-duration`    | 3m                  | Total crawl wall-clock time                        |
+| `-probe`       | 12s                 | Per-peer read window after handshake               |
+| `-top`         | 50                  | Number of peers to keep in the ranked output       |
+| `-out`         | `bch-addnodes.conf` | `addnode=`-formatted output file                   |
+| `-json`        | `bch-peers.json`    | Full JSON dump of every scored peer                |
+| `-max-known`   | 50000               | Cap on the candidate address pool                  |
+| `-ipv6`        | false               | Also crawl and rank IPv6 peers (default IPv4 only) |
+| `-user-agents` | false               | Show observed user-agent counts                    |
 
 Send `SIGINT` (Ctrl-C) and it'll stop early and still write whatever it has.
 

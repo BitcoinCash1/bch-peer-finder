@@ -159,7 +159,7 @@ func (h *heightTracker) Median() int32 {
 // Output
 // ---------------------------------------------------------------------------
 
-func writeOutputs(results []PeerResult, refHeight int32, total int64, addnodeFile, jsonFile string, topN int) error {
+func writeOutputs(results []PeerResult, allPeers []PeerResult, refHeight int32, total int64, addnodeFile, jsonFile string, topN int, showUserAgents bool) error {
 	// Rank
 	sort.SliceStable(results, func(i, j int) bool { return results[i].Score > results[j].Score })
 
@@ -184,6 +184,36 @@ func writeOutputs(results []PeerResult, refHeight int32, total int64, addnodeFil
 			i+1, r.Score, r.MempoolCount, r.StartHeight, rtt, ua)
 	}
 	fmt.Println()
+
+	if showUserAgents {
+		// Collect user-agent counts
+		uaCounts := make(map[string]int)
+		for _, r := range allPeers {
+			uaCounts[r.UserAgent]++
+		}
+
+		// Sort by count descending
+		type uaCount struct {
+			ua    string
+			count int
+		}
+		var uas []uaCount
+		for ua, count := range uaCounts {
+			uas = append(uas, uaCount{ua, count})
+		}
+		sort.Slice(uas, func(i, j int) bool {
+			return uas[i].count > uas[j].count
+		})
+
+		// Print table
+		fmt.Println("=========== OBSERVED USER-AGENTS ===========")
+		fmt.Printf(" count │ user-agent\n")
+		fmt.Println("───────┼────────────────────────────────────────────")
+		for _, u := range uas {
+			fmt.Printf(" %5d │ %s\n", u.count, u.ua)
+		}
+		fmt.Println()
+	}
 
 	// addnode= file
 	if addnodeFile != "" {
@@ -246,6 +276,7 @@ func main() {
 		jsonFile    = flag.String("json", "bch-peers.json", "full JSON output file (empty to skip)")
 		maxKnown    = flag.Int("max-known", 50000, "ceiling on candidate addresses tracked")
 		acceptIPv6  = flag.Bool("ipv6", false, "also crawl and rank IPv6 peers (default IPv4 only)")
+		userAgents  = flag.Bool("user-agents", false, "show all observed user-agents with counter")
 	)
 	flag.Parse()
 
@@ -302,12 +333,16 @@ func main() {
 
 	// Drain results, accumulate good ones.
 	var good []PeerResult
+	var allPeers []PeerResult
 	for r := range results {
 		heights.Add(r.StartHeight)
 		ref := heights.Median()
 		r.Score = computeScore(&r, ref)
-		if r.HandshakeOK && r.Score > 0 {
-			good = append(good, r)
+		if r.HandshakeOK {
+			allPeers = append(allPeers, r)
+			if r.Score > 0 {
+				good = append(good, r)
+			}
 		}
 	}
 
@@ -321,7 +356,7 @@ func main() {
 	fmt.Printf("\ncrawl complete — %d peers evaluated, %d scored as BCH-good, tip≈%d\n",
 		evaluated.Load(), len(good), refHeight)
 
-	if err := writeOutputs(good, refHeight, evaluated.Load(), *addnodeFile, *jsonFile, *topN); err != nil {
+	if err := writeOutputs(good, allPeers, refHeight, evaluated.Load(), *addnodeFile, *jsonFile, *topN, *userAgents); err != nil {
 		fmt.Fprintf(os.Stderr, "output error: %v\n", err)
 		os.Exit(1)
 	}
