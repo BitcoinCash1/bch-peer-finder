@@ -338,6 +338,20 @@ func main() {
 	for r := range results {
 		heights.Add(r.StartHeight)
 		ref := heights.Median()
+
+		// Determine software type (known BCH nodes)
+		if isBCHUserAgent(r.UserAgent) {
+			uaLower := strings.ToLower(r.UserAgent)
+			switch {
+			case strings.Contains(uaLower, "bitcoin cash node"):
+				r.Software = SoftwareBCHN
+			case strings.Contains(uaLower, "bchd"):
+				r.Software = SoftwareBchd
+			case strings.Contains(uaLower, "knuth"):
+				r.Software = SoftwareKnuth
+			}
+		}
+
 		r.Score = computeScore(&r, ref, nil) // temp score
 		if r.HandshakeOK {
 			allPeers = append(allPeers, r)
@@ -348,34 +362,22 @@ func main() {
 	}
 
 	// Compute version stats for relative scoring
-	versionStats := make(map[string]struct{ min, max int })
+	versionStats := make(map[Software]struct{ min, max int })
 	for _, r := range allPeers {
-		if !isBCHUserAgent(r.UserAgent) {
-			continue
-		}
-		var software string
-		uaLower := strings.ToLower(r.UserAgent)
-		switch {
-		case strings.Contains(uaLower, "bitcoin cash node"):
-			software = "bchn"
-		case strings.Contains(uaLower, "bchd"):
-			software = "bchd"
-		case strings.Contains(uaLower, "knuth"):
-			software = "knuth"
-		default:
+		if r.Software == SoftwareUnknown {
 			continue
 		}
 		major, _, _ := parseVersion(r.UserAgent)
-		if stats, ok := versionStats[software]; ok {
+		if stats, ok := versionStats[r.Software]; ok {
 			if major < stats.min {
 				stats.min = major
 			}
 			if major > stats.max {
 				stats.max = major
 			}
-			versionStats[software] = stats
+			versionStats[r.Software] = stats
 		} else {
-			versionStats[software] = struct{ min, max int }{major, major}
+			versionStats[r.Software] = struct{ min, max int }{major, major}
 		}
 	}
 

@@ -25,6 +25,7 @@ type PeerResult struct {
 	AddrsReceived   int       `json:"addrs_received"`
 	LatencyMs       int       `json:"latency_ms"`
 	Score           int       `json:"score"`
+	Software        Software  `json:"software"`
 	Error           string    `json:"error,omitempty"`
 }
 
@@ -252,6 +253,29 @@ func readUntilVersion(conn net.Conn) (*VersionInfo, error) {
 // Filtering + scoring
 // ---------------------------------------------------------------------------
 
+// Software represents a BCH client implementation.
+type Software int
+
+const (
+	SoftwareUnknown Software = iota
+	SoftwareBCHN
+	SoftwareBchd
+	SoftwareKnuth
+)
+
+func (s Software) String() string {
+	switch s {
+	case SoftwareBCHN:
+		return "bchn"
+	case SoftwareBchd:
+		return "bchd"
+	case SoftwareKnuth:
+		return "knuth"
+	default:
+		return "unknown"
+	}
+}
+
 // isBCHUserAgent returns true if a user-agent string belongs to a real BCH
 // implementation. Critical: BSV and eCash share BCH's magic bytes so we MUST
 // disambiguate here, otherwise the output would be polluted with wrong-chain
@@ -337,7 +361,7 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	addrs shared         →  + min(2*n, 200)  (signals willingness to gossip)
 //	protocol ≥ 70015     →  +100
 //	latency penalty      →  -ms/5
-func computeScore(r *PeerResult, refHeight int32, versionStats map[string]struct{ min, max int }) int {
+func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]struct{ min, max int }) int {
 	if !r.HandshakeOK || !isBCHUserAgent(r.UserAgent) {
 		return 0
 	}
@@ -359,22 +383,18 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[string]struct
 	}
 
 	// Extra points for known-good BCH implementations, fully up-to-date spec.
-	var software string
-	switch {
-	case strings.Contains(strings.ToLower(r.UserAgent), "bitcoin cash node"):
+	switch r.Software {
+	case SoftwareBCHN:
 		score += 650
-		software = "bchn"
-	case strings.Contains(strings.ToLower(r.UserAgent), "bchd"):
+	case SoftwareBchd:
 		score += 500
-		software = "bchd"
-	case strings.Contains(strings.ToLower(r.UserAgent), "knuth"):
+	case SoftwareKnuth:
 		score += 500
-		software = "knuth"
 	}
 
 	// Version bonus: relative within software (0-100 points)
-	if software != "" && versionStats != nil {
-		if stats, ok := versionStats[software]; ok && stats.max > stats.min {
+	if r.Software != SoftwareUnknown && versionStats != nil {
+		if stats, ok := versionStats[r.Software]; ok && stats.max > stats.min {
 			major, _, _ := parseVersion(r.UserAgent)
 			bonus := ((major - stats.min) * 100) / (stats.max - stats.min)
 			score += bonus
