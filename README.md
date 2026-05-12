@@ -1,7 +1,7 @@
 # Bitcoin Cash Peer Finder
 
 A zero-dependency Go implementation of just enough of the Bitcoin Cash P2P
-stack to **discover, probe and rank healthy BCHN/bchd peers** for use in your
+stack to **discover, probe and rank healthy Bitcoin Cash peers** for use in your
 own `bitcoin.conf` via `addnode=` directives.
 
 It does _not_ sync the chain, wallet anything, or relay transactions. It only:
