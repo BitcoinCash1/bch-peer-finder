@@ -91,19 +91,20 @@ score = mempool_count × 2
       + (mempool > 100        →  +500 )
       + (NODE_NETWORK         →  +700 )
       + (NODE_BITCOIN_CASH    →  +400 )
-      + (BCHN client          →  +550 + version_bonus (0-200 relative) )
-      + (bchd/knuth client    →  +500 + version_bonus (0-200 relative) )
-      + (flowee client        →  +250 + version_bonus (0-200 relative) )
-      + (verde/BU client      →  +100 + version_bonus (0-200 relative) )
+      + (BCHN client          →  +550 + version_bonus (0-500 relative) )
+      + (bchd/knuth client    →  +500 + version_bonus (0-500 relative) )
+      + (flowee client        →  +250 + version_bonus (0-500 relative) )
+      + (verde/BU client      →  +100 + version_bonus (0-500 relative) )
       + (within 6 of tip      → +2000 ; ≤100 → +1000 ; >1000 → 0)
       + (addrs shared         →  min(n, 50) )
       + (proto ≥ 70016        →  +100 )
-      + (feefilter = 0        →  +200 )   ← accepts all transactions
-      + (feefilter ≤ 1000     →  +150 )   ← ≤1 sat/byte
-      + (feefilter ≤ 10000    →   +75 )   ← moderate
-      + (feefilter > 10000    →   +25 )   ← high filter
-      − (latency_ms ÷ 5)
+      + (feefilter ≤ 1000     →  +200 )   ← ≤1 sat/byte, most permissive
+      + (feefilter ≤ 10000    →  +150 )   ← low-moderate
+      + (feefilter ≤ 100000   →   +75 )   ← moderate
+      + (feefilter > 100000   →   +25 )   ← high filter
+      − (latency_ms ÷ 2)
       − (empty mempool when network has txs → −200)
+      − (below network mean mempool → up to −500, scaled; only if mean > 30)
 ```
 
 The `feefilter` value is sent unsolicited by every well-behaved node right after
