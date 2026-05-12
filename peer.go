@@ -261,6 +261,9 @@ const (
 	SoftwareBCHN
 	SoftwareBchd
 	SoftwareKnuth
+	SoftwareFlowee
+	SoftwareBitcoinVerde
+	SoftwareBitcoinUnlimited
 )
 
 func (s Software) String() string {
@@ -271,6 +274,12 @@ func (s Software) String() string {
 		return "bchd"
 	case SoftwareKnuth:
 		return "knuth"
+	case SoftwareFlowee:
+		return "flowee"
+	case SoftwareBitcoinVerde:
+		return "bitcoin-verde"
+	case SoftwareBitcoinUnlimited:
+		return "bitcoin-unlimited"
 	default:
 		return "unknown"
 	}
@@ -352,9 +361,10 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	mempool_count        →  *2  (the headline signal; well-synced ⇒ big mempool)
 //	NODE_NETWORK         →  +700
 //	NODE_BITCOIN_CASH    →  +400
-//	BCHN client          →  +650 + version_bonus (0-200 relative to peers)
-//	bchd  client         →  +500 + version_bonus (0-200 relative to peers)
-//	knuth  client        →  +500 + version_bonus (0-200 relative to peers)
+//	BCHN client          →  +550 + version_bonus (0-200 relative to peers)
+//	bchd/knuth client    →  +500 + version_bonus (0-200 relative to peers)
+//	flowee client        →  +250 + version_bonus (0-200 relative to peers)
+//	verde/BU client      →  +100 + version_bonus (0-200 relative to peers)
 //	tip within 6 blocks  →  +2000  (≤100 still gets +1000; >1000 zeros score)
 //	addrs shared         →  + min(2*n, 200)  (signals willingness to gossip)
 //	protocol ≥ 70015     →  +100
@@ -384,11 +394,17 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 	// Extra points for known-good BCH implementations, fully up-to-date spec.
 	switch r.Software {
 	case SoftwareBCHN:
-		score += 650
+		score += 550 // Reference implementation, give it slightly more weight than the others to reflect that.
 	case SoftwareBchd:
 		score += 500
 	case SoftwareKnuth:
 		score += 500
+	case SoftwareFlowee:
+		score += 250 // Partly in consensus
+	case SoftwareBitcoinVerde:
+		score += 100 // Not in consensus anymore
+	case SoftwareBitcoinUnlimited:
+		score += 100 // Not in consensus anymore
 	}
 
 	// Version bonus: relative within software (0-200 points)

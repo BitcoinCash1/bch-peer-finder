@@ -349,6 +349,12 @@ func main() {
 				r.Software = SoftwareBchd
 			case strings.Contains(uaLower, "knuth"):
 				r.Software = SoftwareKnuth
+			case strings.Contains(uaLower, "flowee"):
+				r.Software = SoftwareFlowee
+			case strings.Contains(uaLower, "bitcoin verde"):
+				r.Software = SoftwareBitcoinVerde
+			case strings.Contains(uaLower, "bitcoin unlimited"):
+				r.Software = SoftwareBitcoinUnlimited
 			}
 		}
 
