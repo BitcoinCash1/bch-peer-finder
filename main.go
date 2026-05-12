@@ -1,0 +1,330 @@
+// main.go — BCH peer-finder entry point.
+//
+// Pipeline:
+//
+//	DNS seeds ─┐
+//	           ├─► AddrManager ──► N workers ──► PeerResult ──► scoreboard
+//	addr msgs ─┘                       │
+//	                                   ▼
+//	                                addnode= output
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"os"
+	"os/signal"
+	"sort"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"time"
+)
+
+// ---------------------------------------------------------------------------
+// AddrManager — thread-safe FIFO of candidate peers, deduping by ip:port.
+// ---------------------------------------------------------------------------
+
+type AddrManager struct {
+	mu       sync.Mutex
+	known    map[string]struct{}
+	queued   []string
+	tried    map[string]struct{}
+	maxKnown int
+}
+
+func NewAddrManager(maxKnown int) *AddrManager {
+	return &AddrManager{
+		known:    make(map[string]struct{}),
+		tried:    make(map[string]struct{}),
+		maxKnown: maxKnown,
+	}
+}
+
+// Add registers a new candidate. Returns true if it's new.
+func (a *AddrManager) Add(addr string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if _, ok := a.known[addr]; ok {
+		return false
+	}
+	if len(a.known) >= a.maxKnown {
+		return false
+	}
+	a.known[addr] = struct{}{}
+	a.queued = append(a.queued, addr)
+	return true
+}
+
+// Next pulls the head of the queue. Returns ("", false) when empty.
+func (a *AddrManager) Next() (string, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for len(a.queued) > 0 {
+		addr := a.queued[0]
+		a.queued = a.queued[1:]
+		if _, done := a.tried[addr]; done {
+			continue
+		}
+		a.tried[addr] = struct{}{}
+		return addr, true
+	}
+	return "", false
+}
+
+func (a *AddrManager) Stats() (known, tried, pending int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return len(a.known), len(a.tried), len(a.queued)
+}
+
+// ---------------------------------------------------------------------------
+// Worker pool
+// ---------------------------------------------------------------------------
+
+func runWorkers(ctx context.Context, n int, am *AddrManager, results chan<- PeerResult,
+	probeWindow time.Duration, acceptIPv6 bool, evaluated *atomic.Int64) {
+
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				addr, ok := am.Next()
+				if !ok {
+					// queue temporarily empty — back off
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(250 * time.Millisecond):
+					}
+					continue
+				}
+				res := evaluatePeer(ctx, addr, am, probeWindow, acceptIPv6)
+				evaluated.Add(1)
+				select {
+				case results <- res:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(results)
+}
+
+// ---------------------------------------------------------------------------
+// Reference height estimation (median of recent peer start_heights)
+// ---------------------------------------------------------------------------
+
+type heightTracker struct {
+	mu      sync.Mutex
+	heights []int32
+}
+
+func (h *heightTracker) Add(v int32) {
+	if v <= 0 {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.heights = append(h.heights, v)
+	// Keep only the most recent 200 samples to track chain tip movement.
+	if len(h.heights) > 200 {
+		h.heights = h.heights[len(h.heights)-200:]
+	}
+}
+
+func (h *heightTracker) Median() int32 {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.heights) == 0 {
+		return 0
+	}
+	c := append([]int32{}, h.heights...)
+	sort.Slice(c, func(i, j int) bool { return c[i] < c[j] })
+	return c[len(c)/2]
+}
+
+// ---------------------------------------------------------------------------
+// Output
+// ---------------------------------------------------------------------------
+
+func writeOutputs(results []PeerResult, refHeight int32, total int64, addnodeFile, jsonFile string, topN int) error {
+	// Rank
+	sort.SliceStable(results, func(i, j int) bool { return results[i].Score > results[j].Score })
+
+	// Console table
+	fmt.Println()
+	fmt.Println("================ TOP BCH PEERS ================")
+	fmt.Printf(" rank │ score │ mempool │ height  │ rtt │ user-agent\n")
+	fmt.Println("──────┼───────┼─────────┼─────────┼─────┼────────────")
+	for i, r := range results {
+		if i >= topN {
+			break
+		}
+		ua := r.UserAgent
+		if len(ua) > 40 {
+			ua = ua[:40] + "…"
+		}
+		rtt := "  - "
+		if r.LatencyMs > 0 {
+			rtt = fmt.Sprintf("%3dms", r.LatencyMs)
+		}
+		fmt.Printf(" %4d │ %5d │ %7d │ %7d │ %s │ %s\n",
+			i+1, r.Score, r.MempoolCount, r.StartHeight, rtt, ua)
+	}
+	fmt.Println()
+
+	// addnode= file
+	if addnodeFile != "" {
+		f, err := os.Create(addnodeFile)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		fmt.Fprintf(f, "# bch-peer-finder output — %s\n", time.Now().UTC().Format(time.RFC3339))
+		fmt.Fprintf(f, "# reference tip height: %d\n", refHeight)
+		fmt.Fprintf(f, "# peers evaluated:       %d\n", total)
+		fmt.Fprintf(f, "# scored BCH peers:      %d\n", len(results))
+		fmt.Fprintf(f, "# top %d, ranked by score\n\n", topN)
+		for i, r := range results {
+			if i >= topN {
+				break
+			}
+			fmt.Fprintf(f, "# score=%d mempool=%d height=%d latency=%dms ua=%s\n",
+				r.Score, r.MempoolCount, r.StartHeight, r.LatencyMs, r.UserAgent)
+			fmt.Fprintf(f, "addnode=%s\n\n", r.Address)
+		}
+		fmt.Printf("addnode list  -> %s\n", addnodeFile)
+	}
+
+	// JSON dump (everything we kept)
+	if jsonFile != "" {
+		f, err := os.Create(jsonFile)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		enc := json.NewEncoder(f)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(map[string]any{
+			"generated_at":     time.Now().UTC(),
+			"reference_height": refHeight,
+			"peers_evaluated":  total,
+			"scored_bch_peers": len(results),
+			"results":          results,
+		}); err != nil {
+			return err
+		}
+		fmt.Printf("full JSON     -> %s\n", jsonFile)
+	}
+
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// main
+// ---------------------------------------------------------------------------
+
+func main() {
+	var (
+		workers     = flag.Int("workers", 80, "concurrent peer probes")
+		duration    = flag.Duration("duration", 3*time.Minute, "total crawl time")
+		probeWindow = flag.Duration("probe", 12*time.Second, "per-peer read window after handshake")
+		topN        = flag.Int("top", 50, "number of peers to keep in the output")
+		addnodeFile = flag.String("out", "bch-addnodes.conf", "addnode= output file (empty to skip)")
+		jsonFile    = flag.String("json", "bch-peers.json", "full JSON output file (empty to skip)")
+		maxKnown    = flag.Int("max-known", 50000, "ceiling on candidate addresses tracked")
+		acceptIPv6  = flag.Bool("ipv6", false, "also crawl and rank IPv6 peers (default IPv4 only)")
+	)
+	flag.Parse()
+
+	// Cancel on Ctrl-C or after the deadline.
+	ctx, cancel := context.WithTimeout(context.Background(), *duration)
+	defer cancel()
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		fmt.Println("\nshutdown signal received — wrapping up…")
+		cancel()
+	}()
+
+	fmt.Println("bch-peer-finder starting")
+	if *acceptIPv6 {
+		fmt.Println("ipv6 enabled — including IPv6 peers")
+	}
+	fmt.Println("resolving DNS seeds…")
+	bootstrap := ResolveSeeds(ctx, *acceptIPv6)
+	if len(bootstrap) == 0 {
+		fmt.Fprintln(os.Stderr, "no bootstrap addresses (DNS failure?) — exiting")
+		os.Exit(1)
+	}
+	fmt.Printf("  %d unique seed addrs\n\n", len(bootstrap))
+
+	am := NewAddrManager(*maxKnown)
+	for _, a := range bootstrap {
+		am.Add(a)
+	}
+
+	results := make(chan PeerResult, 256)
+	heights := &heightTracker{}
+	evaluated := &atomic.Int64{}
+
+	// Worker pool
+	go runWorkers(ctx, *workers, am, results, *probeWindow, *acceptIPv6, evaluated)
+
+	// Periodic progress
+	progressTicker := time.NewTicker(10 * time.Second)
+	defer progressTicker.Stop()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-progressTicker.C:
+				k, t, p := am.Stats()
+				fmt.Printf("[t+%4ds] evaluated=%d  known=%d  tried=%d  pending=%d  median_height=%d\n",
+					int(time.Since(start).Seconds()), evaluated.Load(), k, t, p, heights.Median())
+			}
+		}
+	}()
+
+	// Drain results, accumulate good ones.
+	var good []PeerResult
+	for r := range results {
+		heights.Add(r.StartHeight)
+		ref := heights.Median()
+		r.Score = computeScore(&r, ref)
+		if r.HandshakeOK && r.Score > 0 {
+			good = append(good, r)
+		}
+	}
+
+	refHeight := heights.Median()
+	// Re-score with final reference height (catches early evaluations that
+	// were scored before we had enough samples for a stable median).
+	for i := range good {
+		good[i].Score = computeScore(&good[i], refHeight)
+	}
+
+	fmt.Printf("\ncrawl complete — %d peers evaluated, %d scored as BCH-good, tip≈%d\n",
+		evaluated.Load(), len(good), refHeight)
+
+	if err := writeOutputs(good, refHeight, evaluated.Load(), *addnodeFile, *jsonFile, *topN); err != nil {
+		fmt.Fprintf(os.Stderr, "output error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+var start = time.Now()
