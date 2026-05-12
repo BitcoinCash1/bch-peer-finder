@@ -351,9 +351,9 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	mempool_count        →  *2  (the headline signal; well-synced ⇒ big mempool)
 //	NODE_NETWORK         →  +700
 //	NODE_BITCOIN_CASH    →  +400
-//	BCHN client          →  +650 + version_bonus (0-100 relative to peers)
-//	bchd  client         →  +500 + version_bonus (0-100 relative to peers)
-//	knuth  client        →  +500 + version_bonus (0-100 relative to peers)
+//	BCHN client          →  +650 + version_bonus (0-200 relative to peers)
+//	bchd  client         →  +500 + version_bonus (0-200 relative to peers)
+//	knuth  client        →  +500 + version_bonus (0-200 relative to peers)
 //	tip within 6 blocks  →  +2000  (≤100 still gets +1000; >1000 zeros score)
 //	addrs shared         →  + min(2*n, 200)  (signals willingness to gossip)
 //	protocol ≥ 70015     →  +100
@@ -392,11 +392,12 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 		score += 500
 	}
 
-	// Version bonus: relative within software (0-100 points)
+	// Version bonus: relative within software (0-200 points)
 	if r.Software != SoftwareUnknown && versionStats != nil {
 		if stats, ok := versionStats[r.Software]; ok && stats.max > stats.min {
-			major, _, _ := parseVersion(r.UserAgent)
-			bonus := ((major - stats.min) * 100) / (stats.max - stats.min)
+			major, minor, patch := parseVersion(r.UserAgent)
+			versionValue := major*10000 + minor*100 + patch
+			bonus := ((versionValue - stats.min) * 200) / (stats.max - stats.min)
 			score += bonus
 		}
 	}
@@ -424,7 +425,7 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 		score += bonus
 	}
 
-	if r.ProtocolVersion >= 70015 {
+	if r.ProtocolVersion >= 70016 {
 		score += 100
 	}
 

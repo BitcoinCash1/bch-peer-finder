@@ -367,17 +367,18 @@ func main() {
 		if r.Software == SoftwareUnknown {
 			continue
 		}
-		major, _, _ := parseVersion(r.UserAgent)
+		major, minor, patch := parseVersion(r.UserAgent)
+		versionValue := major*10000 + minor*100 + patch
 		if stats, ok := versionStats[r.Software]; ok {
-			if major < stats.min {
-				stats.min = major
+			if versionValue < stats.min {
+				stats.min = versionValue
 			}
-			if major > stats.max {
-				stats.max = major
+			if versionValue > stats.max {
+				stats.max = versionValue
 			}
 			versionStats[r.Software] = stats
 		} else {
-			versionStats[r.Software] = struct{ min, max int }{major, major}
+			versionStats[r.Software] = struct{ min, max int }{versionValue, versionValue}
 		}
 	}
 
