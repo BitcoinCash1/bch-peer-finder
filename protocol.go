@@ -2,7 +2,7 @@
 //
 // References:
 //   - https://github.com/gcash/bchd/blob/master/wire
-//   - https://reference.cash/protocol/network
+//   - https://reference.cash/protocol/network/messages
 //   - BCHN src/protocol.h, src/net_processing.cpp
 //   - BIP-155 (addrv2)
 package main
@@ -31,7 +31,7 @@ const (
 	// Service flags (from BCHN src/protocol.h ServiceFlags)
 	NodeNetwork        uint64 = 1 << 0
 	NodeGetUTXO        uint64 = 1 << 1
-	NodeBloom          uint64 = 1 << 2
+	NodeBloom          uint64 = 1 << 2 // Not used in Bitcoin Cash anymore (BCHN)
 	NodeXThin          uint64 = 1 << 4
 	NodeBitcoinCash    uint64 = 1 << 5 // a.k.a. NODE_CASH
 	NodeGraphene       uint64 = 1 << 6
