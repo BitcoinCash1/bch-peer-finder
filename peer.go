@@ -381,7 +381,7 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	feefilter >100000    →  +25   (high filter, barely counts)
 //	latency penalty      →  -ms/2
 //	empty mempool penalty→  -200  (when ≥20 good peers confirm mempool is filled)
-//	below-avg mempool    →  up to -500  (scaled by how far below mean, if mean > 50)
+//	below-avg mempool    →  up to -500  (scaled by how far below mean, if mean > 30)
 func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]struct{ min, max int }, mempoolFilled bool, mempoolMean int) int {
 	if !r.HandshakeOK || !isBCHUserAgent(r.UserAgent) {
 		return 0
@@ -395,10 +395,6 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 	if r.Services&NodeNetwork != 0 {
 		score += 700
 	}
-	// BitcoinCash does not use bloom filtered connections anymore since protocol version 70011
-	// if r.Services&NodeBloom != 0 {
-	// 	score += 200
-	// }
 	if r.Services&NodeBitcoinCash != 0 {
 		score += 400
 	}
@@ -475,10 +471,10 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 	}
 
 	// Penalise peers significantly below the network mean mempool size.
-	// Only kicks in when the mean is meaningful (>50 txs) to avoid noise
+	// Only kicks in when the mean is meaningful (>30 txs) to avoid noise
 	// during low-traffic periods. Penalty scales linearly: a peer at 0 when
 	// mean=500 gets the full -500; a peer at half the mean gets -250.
-	if mempoolMean > 50 && r.MempoolCount < mempoolMean {
+	if mempoolMean > 30 && r.MempoolCount < mempoolMean {
 		deficit := mempoolMean - r.MempoolCount
 		score -= (deficit * 500) / mempoolMean
 	}
