@@ -90,7 +90,6 @@ Every peer that completes the handshake and looks like real BCH gets:
 score = mempool_count × 2
       + (mempool > 100        →  +500 )
       + (NODE_NETWORK         →  +500 )
-      + (NODE_BLOOM           →  +200 )
       + (NODE_BITCOIN_CASH    →  +300 )
       + (BCHN client          →  +650 )
       + (bchd  client         →  +500 )
@@ -146,9 +145,6 @@ freshness signals, and surfaces the ones you'd otherwise never connect to.
 
 ## Design notes / things you can tune
 
-- **`filterload` before `mempool`**: BCHN requires the connecting peer to
-  have set a bloom filter before it'll honour `mempool`. We send a
-  match-all 1-byte filter to satisfy this.
 - **Protocol version 70016**: matches current BCHN.
 - **Routability filter** (`isRoutableIPv4` in `peer.go`): drops RFC 1918,
   CGNAT (100.64/10), 0.0.0.0/8, 127/8, multicast, link-local before
