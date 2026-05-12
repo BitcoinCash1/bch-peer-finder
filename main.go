@@ -167,8 +167,8 @@ func writeOutputs(results []PeerResult, allPeers []PeerResult, refHeight int32, 
 	// Console table
 	fmt.Println()
 	fmt.Println("================ TOP BCH PEERS ================")
-	fmt.Printf(" rank │ score │ mempool │ height  │ rtt │ user-agent\n")
-	fmt.Println("──────┼───────┼─────────┼─────────┼─────┼────────────")
+	fmt.Printf(" rank │ score │ mempool │ height  │ rtt   │ fee-filter  │ user-agent\n")
+	fmt.Println("──────┼───────┼─────────┼─────────┼───────┼─────────────┼────────────")
 	for i, r := range results {
 		if i >= topN {
 			break
@@ -177,12 +177,16 @@ func writeOutputs(results []PeerResult, allPeers []PeerResult, refHeight int32, 
 		if len(ua) > 40 {
 			ua = ua[:40] + "…"
 		}
-		rtt := "  - "
+		rtt := "    - "
 		if r.LatencyMs > 0 {
-			rtt = fmt.Sprintf("%3dms", r.LatencyMs)
+			rtt = fmt.Sprintf("%4dms", r.LatencyMs)
 		}
-		fmt.Printf(" %4d │ %5d │ %7d │ %7d │ %s │ %s\n",
-			i+1, r.Score, r.MempoolCount, r.StartHeight, rtt, ua)
+		feeStr := "          -"
+		if r.FeeFilter > 0 {
+			feeStr = fmt.Sprintf("%5d sat/kB", r.FeeFilter)
+		}
+		fmt.Printf(" %4d │ %5d │ %7d │ %7d │ %s │ %s │ %s\n",
+			i+1, r.Score, r.MempoolCount, r.StartHeight, rtt, feeStr, ua)
 	}
 	fmt.Println()
 

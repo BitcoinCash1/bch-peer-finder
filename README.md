@@ -9,15 +9,15 @@ It does _not_ sync the chain, wallet anything, or relay transactions. It only:
 1. Resolves the BCH mainnet DNS seeders.
 2. Speaks the BCH P2P wire protocol (magic `e3 e1 f3 e8`, port 8333) from
    scratch — framing, varints, double-SHA256 checksums, `version`/`verack`,
-   `addr`/`addrv2` (BIP-155), `inv`, `ping`/`pong`, `filterload`, `mempool`,
-   `getaddr`.
+   `addr`/`addrv2` (BIP-155), `inv`, `ping`/`pong`, `mempool`, `getaddr`,
+   `feefilter`.
 3. Concurrently probes hundreds of peers, recursively growing its address pool
    from every `addr`/`addrv2` it receives — exactly how a real BCHN node
    bootstraps.
 4. Filters by user-agent so eCash / BSV / ABC peers (which share BCH's magic
    bytes) don't pollute the output.
 5. Ranks survivors by mempool depth, sync proximity to the median tip,
-   service flags, latency and gossip willingness.
+   service flags, fee filter permissiveness, latency and gossip willingness.
 6. Writes the top N to a ready-to-paste `bch-addnodes.conf` (limited numbers of peer from the `-top` flag, default 50 peers). As well as a `bch-peers.json` JSON file containing all the results.
 
 ## Build
@@ -62,11 +62,11 @@ Send `SIGINT` (Ctrl-C) and it'll stop early and still write whatever it has.
 
 A typical run finishes with a console table like (example):
 
-| rank | score | mempool | height |  rtt | user-agent                         |
-| ---: | ----: | ------: | -----: | ---: | ---------------------------------- |
-|    1 |  4212 |     132 | 950752 | 42ms | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
-|    2 |  4207 |     120 | 950752 | 51ms | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
-|    3 |  3937 |     119 | 950752 | 88ms | /bchd:0.22.0(EB32.0)/              |
+| rank | score | mempool | height |   rtt | fee-filter  | user-agent                         |
+| ---: | ----: | ------: | -----: | ----: | ----------: | ---------------------------------- |
+|    1 |  4412 |     132 | 950752 |  42ms |   0 sat/kB  | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
+|    2 |  4357 |     120 | 950752 |  51ms | 100 sat/kB  | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
+|    3 |  4087 |     119 | 950752 |  88ms |           - | /bchd:0.22.0(EB32.0)/              |
 
 ...and a file `bch-addnodes.conf` containing (limited to `-top` flag peer results, by default 50):
 
@@ -96,10 +96,21 @@ score = mempool_count × 2
       + (flowee client        →  +250 + version_bonus (0-200 relative) )
       + (verde/BU client      →  +100 + version_bonus (0-200 relative) )
       + (within 6 of tip      → +2000 ; ≤100 → +1000 ; >1000 → 0)
-      + (addrs shared         → min(2n, 200))
+      + (addrs shared         →  min(n, 50) )
       + (proto ≥ 70016        →  +100 )
+      + (feefilter = 0        →  +200 )   ← accepts all transactions
+      + (feefilter ≤ 1000     →  +150 )   ← ≤1 sat/byte
+      + (feefilter ≤ 10000    →   +75 )   ← moderate
+      + (feefilter > 10000    →   +25 )   ← high filter
       − (latency_ms ÷ 5)
+      − (empty mempool when network has txs → −200)
 ```
+
+The `feefilter` value is sent unsolicited by every well-behaved node right after
+the handshake — it's free information that costs zero extra bandwidth. A lower
+fee filter means the peer accepts more transactions, which makes it a better
+`addnode=` candidate. A peer that never sends `feefilter` scores 0 for that
+signal.
 
 Peers that don't handshake, or whose user-agent isn't on the BCH whitelist
 (`Bitcoin Cash Node`, `bchd`, `kth`, `Flowee`, `Bitcoin Verde`, `Bitcoin Unlimited`

@@ -24,6 +24,7 @@ type PeerResult struct {
 	MempoolCount    int       `json:"mempool_count"`
 	AddrsReceived   int       `json:"addrs_received"`
 	LatencyMs       int       `json:"latency_ms"`
+	FeeFilter       int64     `json:"fee_filter,omitempty"` // min fee rate in sat/kB as sent by peer; 0 = not received
 	Score           int       `json:"score"`
 	Software        Software  `json:"software"`
 	Error           string    `json:"error,omitempty"`
@@ -148,8 +149,16 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 			// Be polite — echo the nonce back so the peer doesn't drop us.
 			_ = writeMessage(conn, "pong", payload)
 
+		case "feefilter":
+			if len(payload) >= 8 && res.FeeFilter == 0 {
+				v := int64(binary.LittleEndian.Uint64(payload[:8]))
+				if v > 0 {
+					res.FeeFilter = v
+				}
+			}
+
 		default:
-			// Drain anything else (sendcmpct, feefilter, sendheaders, xversion …).
+			// Drain anything else (sendcmpct, sendheaders, xversion …).
 		}
 	}
 
@@ -366,6 +375,10 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	tip within 6 blocks  →  +2000  (≤100 still gets +1000; >1000 zeros score)
 //	addrs shared         →  + min(n, 50)     (weak signal; just rewards any gossip)
 //	protocol ≥ 70016     →  +100
+//	feefilter ≤1000      →  +200  (≤1 sat/byte — very permissive)
+//	feefilter ≤10000     →  +150  (low-moderate)
+//	feefilter ≤100000    →  +75   (moderate)
+//	feefilter >100000    →  +25   (high filter, barely counts)
 //	latency penalty      →  -ms/5
 //	empty mempool penalty→  -200  (when ≥20 good peers confirm mempool is filled)
 func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]struct{ min, max int }, mempoolFilled bool) int {
@@ -436,6 +449,19 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 
 	if r.ProtocolVersion >= 70016 {
 		score += 100
+	}
+
+	// feefilter: lower = more permissive = better addnode peer.
+	// 0 means not received (field omitted); real nodes always send > 0.
+	switch {
+	case r.FeeFilter > 0 && r.FeeFilter <= 1000:
+		score += 200 // very low threshold (≤1 sat/byte) — most permissive
+	case r.FeeFilter > 1000 && r.FeeFilter <= 10000:
+		score += 150 // low-moderate filter
+	case r.FeeFilter > 10000 && r.FeeFilter <= 100000:
+		score += 75 // moderate filter
+	case r.FeeFilter > 100000:
+		score += 25 // high filter — alive but selective
 	}
 
 	if r.LatencyMs > 0 {
