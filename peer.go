@@ -310,6 +310,7 @@ func isBCHUserAgent(ua string) bool {
 		"flowee",        // Flowee the Hub (BCH)
 		"bitcoin verde", // Verde (BCH)
 		"knuth",         // Knuth (kth)
+		"kth",
 	}
 	for _, g := range goodSubstr {
 		if strings.Contains(lower, g) {
@@ -372,7 +373,7 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 	if r.Services&NodeNetwork != 0 {
 		score += 700
 	}
-	// BitcoinCash does not bloom filtered connections anymore since protocol version 70011
+	// BitcoinCash does not use bloom filtered connections anymore since protocol version 70011
 	// if r.Services&NodeBloom != 0 {
 	// 	score += 200
 	// }

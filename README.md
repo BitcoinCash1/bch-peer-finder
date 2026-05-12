@@ -96,7 +96,7 @@ score = mempool_count × 2
       + (knuth  client        →  +500 + version_bonus (0-200 relative) )
       + (within 6 of tip      → +2000 ; ≤100 → +1000 ; >1000 → 0)
       + (addrs shared         → min(2n, 200))
-      + (proto ≥ 70015        →  +100 )
+      + (proto ≥ 70016        →  +100 )
       − (latency_ms ÷ 5)
 ```
 
@@ -119,8 +119,7 @@ We filter at the user-agent layer:
 
 - **Accept**: `Bitcoin Cash Node`, `bchd`, `kth`, `Flowee`, `Bitcoin Verde`,
   `Bitcoin Unlimited`.
-- **Reject**: anything containing `Bitcoin SV`, `BSV`, `eCash`, `Bitcoin ABC`,
-  `Cashnodes`.
+- **Reject**: anything containing `Bitcoin SV`, `BSV`, `eCash`, `Bitcoin ABC`.
 
 If a new BCH client appears, edit `isBCHUserAgent` in `peer.go`.
 
