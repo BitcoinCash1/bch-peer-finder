@@ -366,7 +366,7 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	flowee client        →  +250 + version_bonus (0-200 relative to peers)
 //	verde/BU client      →  +100 + version_bonus (0-200 relative to peers)
 //	tip within 6 blocks  →  +2000  (≤100 still gets +1000; >1000 zeros score)
-//	addrs shared         →  + min(2*n, 200)  (signals willingness to gossip)
+//	addrs shared         →  + min(n, 50)     (weak signal; just rewards any gossip)
 //	protocol ≥ 70016     →  +100
 //	latency penalty      →  -ms/5
 //	empty mempool penalty→  -200  (when ≥20 good peers confirm mempool is filled)
@@ -433,11 +433,7 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 	}
 
 	if r.AddrsReceived > 0 {
-		bonus := 2 * r.AddrsReceived
-		if bonus > 200 {
-			bonus = 200
-		}
-		score += bonus
+		score += min(r.AddrsReceived, 50)
 	}
 
 	if r.ProtocolVersion >= 70016 {
