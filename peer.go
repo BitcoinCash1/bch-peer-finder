@@ -322,13 +322,14 @@ func computeScore(r *PeerResult, refHeight int32) int {
 	}
 
 	if r.Services&NodeNetwork != 0 {
-		score += 500
+		score += 700
 	}
-	if r.Services&NodeBloom != 0 {
-		score += 200
-	}
+	// BitcoinCash does not bloom filtered connections anymore since protocol version 70011
+	// if r.Services&NodeBloom != 0 {
+	// 	score += 200
+	// }
 	if r.Services&NodeBitcoinCash != 0 {
-		score += 300
+		score += 400
 	}
 
 	// Extra points for known-good BCH implementations, fully up-to-date spec.
