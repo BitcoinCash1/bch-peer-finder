@@ -90,8 +90,6 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 	res.StartHeight = theirVersion.StartHeight
 
 	// Phase 3 — request data.
-	// filterload first so the mempool command will be honoured.
-	_ = writeMessage(conn, "filterload", buildMatchAllFilter())
 	_ = writeMessage(conn, "mempool", nil)
 	_ = writeMessage(conn, "getaddr", nil)
 

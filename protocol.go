@@ -442,26 +442,6 @@ func decodeInvTxCount(payload []byte) (int, error) {
 }
 
 // ---------------------------------------------------------------------------
-// filterload — set a match-all bloom filter so the peer will honour our
-// mempool request. Without this, BCHN/bchd won't respond to `mempool`.
-// ---------------------------------------------------------------------------
-
-// buildMatchAllFilter encodes a 1-byte 0xff filter that matches everything.
-//
-//	filter:    varbytes  -> 1 byte: 0xff
-//	nHashFunc: uint32 LE -> 1
-//	nTweak:    uint32 LE -> 0
-//	nFlags:    uint8     -> 1 (BLOOM_UPDATE_ALL)
-func buildMatchAllFilter() []byte {
-	var buf bytes.Buffer
-	_ = writeVarInt(&buf, 1)
-	buf.WriteByte(0xff)
-	_ = binary.Write(&buf, binary.LittleEndian, uint32(1)) // nHashFunc
-	_ = binary.Write(&buf, binary.LittleEndian, uint32(0)) // nTweak
-	buf.WriteByte(1)                                       // BLOOM_UPDATE_ALL
-	return buf.Bytes()
-}
-
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
