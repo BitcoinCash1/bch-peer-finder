@@ -59,15 +59,15 @@ Send `SIGINT` (Ctrl-C) and it'll stop early and still write whatever it has.
 
 ## Output
 
-A typical run finishes with a console table like:
+A typical run finishes with a console table like (example):
 
 | rank | score | mempool | height |  rtt | user-agent                         |
 | ---: | ----: | ------: | -----: | ---: | ---------------------------------- |
-|    1 | 17234 |    5821 | 899451 | 42ms | /Bitcoin Cash Node:27.0.0(EB32.0)/ |
-|    2 | 16980 |    5743 | 899451 | 51ms | /Bitcoin Cash Node:27.0.0(EB32.0)/ |
-|    3 | 14102 |    3892 | 899451 | 88ms | /bchd:0.20.0/                      |
+|    1 | 17234 |    5821 | 899451 | 42ms | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
+|    2 | 16980 |    5743 | 899451 | 51ms | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
+|    3 | 14102 |    3892 | 899451 | 88ms | /bchd:0.22.0(EB32.0)/              |
 
-...and a file `bch-addnodes.conf` containing:
+...and a file `bch-addnodes.conf` containing (limited to `-top` flag peer results, by default 50):
 
 ```conf
 # score=5489 mempool=106 height=950733 latency=116ms ua=/Bitcoin Cash Node:29.0.0(EB32.0)/
@@ -77,7 +77,9 @@ addnode=70.50.144.93:8999
 addnode=8.214.158.13:8363
 ```
 
-Drop the contents into your BCHN `bitcoin.conf`, restart `bitcoind`, done.
+Drop the contents of `bch-addnodes.conf` into your BCHN `bitcoin.conf`, adapt if needed, and restart `bitcoind`. Done 🙂︎.
+
+Finally, there is also a JSON file: `bch-peers.json` generated, containing all the results.
 
 ## How the scoring works
 
