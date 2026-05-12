@@ -10,6 +10,7 @@ import (
 
 // MainnetDNSSeeds are the DNS seeders maintained for the BCH mainnet
 var MainnetDNSSeeds = []string{
+	"seed.flowee.cash",
 	"btccash-seeder.bitcoinunlimited.info",
 	"seed.bchd.cash",
 	"seed.bch.loping.net",
