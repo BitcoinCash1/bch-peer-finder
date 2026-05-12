@@ -368,10 +368,10 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	mempool_count        →  *2  (the headline signal; well-synced ⇒ big mempool)
 //	NODE_NETWORK         →  +700
 //	NODE_BITCOIN_CASH    →  +400
-//	BCHN client          →  +550 + version_bonus (0-200 relative to peers)
-//	bchd/knuth client    →  +500 + version_bonus (0-200 relative to peers)
-//	flowee client        →  +250 + version_bonus (0-200 relative to peers)
-//	verde/BU client      →  +100 + version_bonus (0-200 relative to peers)
+//	BCHN client          →  +550 + version_bonus (0-500 relative to peers)
+//	bchd/knuth client    →  +500 + version_bonus (0-500 relative to peers)
+//	flowee client        →  +250 + version_bonus (0-500 relative to peers)
+//	verde/BU client      →  +100 + version_bonus (0-500 relative to peers)
 //	tip within 6 blocks  →  +2000  (≤100 still gets +1000; >1000 zeros score)
 //	addrs shared         →  + min(n, 50)     (weak signal; just rewards any gossip)
 //	protocol ≥ 70016     →  +100
@@ -379,7 +379,7 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	feefilter ≤10000     →  +150  (low-moderate)
 //	feefilter ≤100000    →  +75   (moderate)
 //	feefilter >100000    →  +25   (high filter, barely counts)
-//	latency penalty      →  -ms/5
+//	latency penalty      →  -ms/2
 //	empty mempool penalty→  -200  (when ≥20 good peers confirm mempool is filled)
 func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]struct{ min, max int }, mempoolFilled bool) int {
 	if !r.HandshakeOK || !isBCHUserAgent(r.UserAgent) {
@@ -418,12 +418,12 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 		score += 100 // Not in consensus anymore
 	}
 
-	// Version bonus: relative within software (0-200 points)
+	// Version bonus: relative within software (0-500 points)
 	if r.Software != SoftwareUnknown && versionStats != nil {
 		if stats, ok := versionStats[r.Software]; ok && stats.max > stats.min {
 			major, minor, patch := parseVersion(r.UserAgent)
 			versionValue := major*10000 + minor*100 + patch
-			bonus := ((versionValue - stats.min) * 200) / (stats.max - stats.min)
+			bonus := ((versionValue - stats.min) * 500) / (stats.max - stats.min)
 			score += bonus
 		}
 	}
@@ -465,7 +465,7 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 	}
 
 	if r.LatencyMs > 0 {
-		score -= r.LatencyMs / 5
+		score -= r.LatencyMs / 2
 	}
 
 	// Penalise peers with an empty mempool when the network clearly has transactions.
