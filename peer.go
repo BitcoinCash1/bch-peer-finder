@@ -304,8 +304,9 @@ func isBCHUserAgent(ua string) bool {
 //	NODE_NETWORK         →  +500
 //	NODE_BLOOM           →  +200
 //	NODE_BITCOIN_CASH    →  +300
-//	BCHN client          →  +1500
+//	BCHN client          →  +650
 //	bchd  client         →  +500
+//	knuth  client        →  +500
 //	tip within 6 blocks  →  +2000  (≤100 still gets +1000; >1000 zeros score)
 //	addrs shared         →  + min(2*n, 200)  (signals willingness to gossip)
 //	protocol ≥ 70015     →  +100
@@ -330,10 +331,13 @@ func computeScore(r *PeerResult, refHeight int32) int {
 		score += 300
 	}
 
+	// Extra points for known-good BCH implementations, fully up-to-date spec.
 	switch {
 	case strings.Contains(strings.ToLower(r.UserAgent), "bitcoin cash node"):
-		score += 1500
+		score += 650
 	case strings.Contains(strings.ToLower(r.UserAgent), "bchd"):
+		score += 500
+	case strings.Contains(strings.ToLower(r.UserAgent), "knuth"):
 		score += 500
 	}
 
