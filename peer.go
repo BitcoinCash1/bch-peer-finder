@@ -367,7 +367,7 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	verde/BU client      →  +100 + version_bonus (0-200 relative to peers)
 //	tip within 6 blocks  →  +2000  (≤100 still gets +1000; >1000 zeros score)
 //	addrs shared         →  + min(2*n, 200)  (signals willingness to gossip)
-//	protocol ≥ 70015     →  +100
+//	protocol ≥ 70016     →  +100
 //	latency penalty      →  -ms/5
 //	empty mempool penalty→  -200  (when ≥20 good peers confirm mempool is filled)
 func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]struct{ min, max int }, mempoolFilled bool) int {
