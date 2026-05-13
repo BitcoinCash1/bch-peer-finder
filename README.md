@@ -22,11 +22,11 @@ It does _not_ sync the chain, wallet anything, or relay transactions. It only:
 
 ## Build
 
-Simply `git clone` the repository and build:
+Simply `git clone` the repository and run the go build:
 
 ```bash
 cd bch-peer-finder
-go build -o bch-peer-finder .
+go build
 ```
 
 ## Run

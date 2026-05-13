@@ -1,0 +1,32 @@
+default:
+  image: golang:latest
+
+  cache:
+    key:
+      files:
+        - go.mod
+    paths:
+      - .go/pkg/mod/
+
+variables:
+  GOPATH: $CI_PROJECT_DIR/.go
+
+stages:
+  - test
+  - build
+
+format:
+  stage: test
+  script:
+    - go fmt $(go list ./... | grep -v /vendor/)
+    - go vet $(go list ./... | grep -v /vendor/)
+
+build:
+  stage: build
+  script:
+    - go build
+  artifacts:
+    paths:
+      - bch-peer-finder
+    expire_in: 1 week
+
