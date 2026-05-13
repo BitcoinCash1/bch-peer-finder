@@ -43,7 +43,7 @@ const (
 	InvFilteredBlk  uint32 = 3
 	InvCompactBlock uint32 = 4
 
-	// Our protocol version. BCHN currently negotiates 70016.
+	// Try to use the latest protocol version (both BCHN and BCHD should support this)
 	ProtocolVersion int32 = 70016
 )
 
