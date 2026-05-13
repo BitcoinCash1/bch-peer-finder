@@ -136,7 +136,7 @@ We filter at the user-agent layer:
   `Bitcoin Unlimited`.
 - **Reject**: anything containing `Bitcoin SV`, `BSV`, `eCash`, `Bitcoin ABC`.
 
-If a new BCH client appears, update `goodSubstr` (in `isBCHUserAgent`), the `Software` enum, and the `Software.String()` switch in `peer.go`, the `computeScore` switch also in `peer.go`, and the user-agent detection switch in `main.go`.
+If a new BCH node appears, update `goodSubstr` (in `isBCHUserAgent`), the `Software` enum, and the `Software.String()` switch in `peer.go`, the `computeScore` switch also in `peer.go`, and the user-agent detection switch in `main.go`.
 
 ## File layout
 
