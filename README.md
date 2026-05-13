@@ -54,7 +54,7 @@ go build -o bch-peer-finder .
 | `-json`        | `bch-peers.json`    | Full JSON dump of every scored peer                |
 | `-max-known`   | 50000               | Cap on the candidate address pool                  |
 | `-ipv6`        | false               | Also crawl and rank IPv6 peers (default IPv4 only) |
-| `-user-agents` | false               | Show observed user-agent counts                    |
+| `-user-agents` | false               | Show observed user-agent display with counter      |
 
 Send `SIGINT` (Ctrl-C) and it'll stop early and still write whatever it has.
 
@@ -62,11 +62,11 @@ Send `SIGINT` (Ctrl-C) and it'll stop early and still write whatever it has.
 
 A typical run finishes with a console table like (example):
 
-| rank | score | mempool | height |   rtt | fee-filter  | user-agent                         |
-| ---: | ----: | ------: | -----: | ----: | ----------: | ---------------------------------- |
-|    1 |  4412 |     132 | 950752 |  42ms |   0 sat/kB  | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
-|    2 |  4357 |     120 | 950752 |  51ms | 100 sat/kB  | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
-|    3 |  4087 |     119 | 950752 |  88ms |           - | /bchd:0.22.0(EB32.0)/              |
+| rank | score | mempool | height |  rtt | fee-filter | user-agent                         |
+| ---: | ----: | ------: | -----: | ---: | ---------: | ---------------------------------- |
+|    1 |  4412 |     132 | 950752 | 42ms |   0 sat/kB | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
+|    2 |  4357 |     120 | 950752 | 51ms | 100 sat/kB | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
+|    3 |  4087 |     119 | 950752 | 88ms |          - | /bchd:0.22.0(EB32.0)/              |
 
 ...and a file `bch-addnodes.conf` containing (limited to `-top` flag peer results, by default 50):
 

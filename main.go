@@ -300,6 +300,9 @@ func main() {
 	if *acceptIPv6 {
 		fmt.Println("ipv6 enabled — including IPv6 peers")
 	}
+	if *userAgents {
+		fmt.Println("user-agents enabled — all observed user-agents will be displayed")
+	}
 	fmt.Println("resolving DNS seeds…")
 	bootstrap := ResolveSeeds(ctx, *acceptIPv6)
 	if len(bootstrap) == 0 {
