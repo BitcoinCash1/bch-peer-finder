@@ -368,10 +368,10 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	mempool_count        →  *2  (the headline signal; well-synced ⇒ big mempool)
 //	NODE_NETWORK         →  +700
 //	NODE_BITCOIN_CASH    →  +400
-//	BCHN client          →  +550 + version_bonus (0-500 relative to peers)
-//	bchd/knuth client    →  +500 + version_bonus (0-500 relative to peers)
-//	flowee client        →  +250 + version_bonus (0-500 relative to peers)
-//	verde/BU client      →  +100 + version_bonus (0-500 relative to peers)
+//	BCHN client          →  +550 + version_bonus (0-2000, relative within BCHN peers only)
+//	bchd/knuth client    →  +500 + version_bonus (0-2000, relative within bchd/knuth peers only)
+//	flowee client        →  +250 + version_bonus (0-2000, relative within flowee peers only)
+//	verde/BU client      →  +100 + version_bonus (0-2000, relative within verde/BU peers only)
 //	tip within 6 blocks  →  +2000  (≤100 still gets +1000; >1000 zeros score)
 //	addrs shared         →  + min(n, 50)     (weak signal; just rewards any gossip)
 //	protocol ≥ 70016     →  +100
@@ -415,12 +415,13 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 		score += 100 // Not in consensus anymore
 	}
 
-	// Version bonus: relative within software (0-500 points)
+	// Version bonus: 0-2000 pts, scaled relative to min/max within the same software.
+	// Comparisons are strictly within-software: BCHN vs BCHN, bchd vs bchd, etc.
 	if r.Software != SoftwareUnknown && versionStats != nil {
 		if stats, ok := versionStats[r.Software]; ok && stats.max > stats.min {
 			major, minor, patch := parseVersion(r.UserAgent)
 			versionValue := major*10000 + minor*100 + patch
-			bonus := ((versionValue - stats.min) * 500) / (stats.max - stats.min)
+			bonus := ((versionValue - stats.min) * 2000) / (stats.max - stats.min)
 			score += bonus
 		}
 	}

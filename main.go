@@ -371,9 +371,10 @@ func main() {
 		}
 	}
 
-	// Compute version stats for relative scoring
+	// Compute version stats per software for relative version scoring.
+	// Each software is compared only against itself: BCHN vs BCHN, bchd vs bchd, etc.
 	versionStats := make(map[Software]struct{ min, max int })
-	for _, r := range allPeers {
+	for _, r := range good {
 		if r.Software == SoftwareUnknown {
 			continue
 		}

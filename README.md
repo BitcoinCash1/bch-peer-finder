@@ -91,10 +91,10 @@ score = mempool_count × 2
       + (mempool > 100        →  +500 )
       + (NODE_NETWORK         →  +700 )
       + (NODE_BITCOIN_CASH    →  +400 )
-      + (BCHN client          →  +550 + version_bonus (0-500 relative) )
-      + (bchd/knuth client    →  +500 + version_bonus (0-500 relative) )
-      + (flowee client        →  +250 + version_bonus (0-500 relative) )
-      + (verde/BU client      →  +100 + version_bonus (0-500 relative) )
+      + (BCHN client          →  +550 + version_bonus (0-2000, relative within BCHN) )
+      + (bchd/knuth client    →  +500 + version_bonus (0-2000, relative within bchd/knuth) )
+      + (flowee client        →  +250 + version_bonus (0-2000, relative within flowee) )
+      + (verde/BU client      →  +100 + version_bonus (0-2000, relative within verde/BU) )
       + (within 6 of tip      → +2000 ; ≤100 → +1000 ; >1000 → 0)
       + (addrs shared         →  min(n, 50) )
       + (proto ≥ 70016        →  +100 )
@@ -106,6 +106,8 @@ score = mempool_count × 2
       − (empty mempool when network has txs → −200)
       − (below network mean mempool → up to −500, scaled; only if mean > 30)
 ```
+
+The `version_bonus` is computed **within each software family separately** — BCHN versions are only compared against other BCHN nodes, bchd against bchd, and so on. The oldest version seen in the crawl scores 0, the newest scores +2000, and everything in between is scaled linearly. This ensures a newer BCHN release always outranks an older one, without cross-software comparisons ever happening.
 
 The `feefilter` value is sent unsolicited by every well-behaved node right after
 the handshake — it's free information that costs zero extra bandwidth. A lower
