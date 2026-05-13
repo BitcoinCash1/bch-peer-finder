@@ -271,39 +271,35 @@ func decodeVersion(payload []byte) (*VersionInfo, error) {
 	if err := binary.Read(r, binary.LittleEndian, &v.Timestamp); err != nil {
 		return nil, err
 	}
-	// skip addr_recv (26 bytes) and addr_from (26 bytes)
+	// skip addr_recv (26 bytes)
 	skip := make([]byte, 26)
 	if _, err := io.ReadFull(r, skip); err != nil {
 		return nil, err
 	}
-	if r.Len() >= 26 {
-		if _, err := io.ReadFull(r, skip); err != nil {
-			return nil, err
-		}
+	// skip addr_from (26 bytes)
+	if _, err := io.ReadFull(r, skip); err != nil {
+		return nil, err
 	}
-	// nonce
-	if r.Len() >= 8 {
-		var nonce uint64
-		if err := binary.Read(r, binary.LittleEndian, &nonce); err != nil {
-			return nil, err
-		}
+	// nonce (8 bytes)
+	var nonce uint64
+	if err := binary.Read(r, binary.LittleEndian, &nonce); err != nil {
+		return nil, err
 	}
 	// user agent
-	if r.Len() > 0 {
-		ua, err := readVarString(r, 256)
-		if err == nil {
-			v.UserAgent = ua
-		}
+	ua, err := readVarString(r, 256)
+	if err != nil {
+		return nil, err
 	}
-	if r.Len() >= 4 {
-		_ = binary.Read(r, binary.LittleEndian, &v.StartHeight)
+	v.UserAgent = ua
+	if err := binary.Read(r, binary.LittleEndian, &v.StartHeight); err != nil {
+		return nil, err
 	}
-	if r.Len() >= 1 {
-		var b byte
-		_ = binary.Read(r, binary.LittleEndian, &b)
-		v.Relay = b != 0
+	var b byte
+	if err := binary.Read(r, binary.LittleEndian, &b); err != nil {
+		// relay field is optional on very old peers; default to true
+		v.Relay = true
 	} else {
-		v.Relay = true // legacy default
+		v.Relay = b != 0
 	}
 	return v, nil
 }

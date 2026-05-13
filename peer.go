@@ -84,6 +84,26 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 		return res
 	}
 
+	// Wait for the peer's verack before proceeding to Phase 3.
+	// Some peers don't process requests until their handshake is complete.
+	// Drain messages until we see verack (or xversion, which some peers send here).
+	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	for i := 0; i < 10; i++ {
+		cmd, _, err := readMessage(conn)
+		if err != nil {
+			break
+		}
+		if cmd == "verack" {
+			break
+		}
+		// xversion (BIP-155 extended version) can arrive here; be polite and reply.
+		if cmd == "xversion" {
+			_ = writeMessage(conn, "xverack", nil)
+		}
+	}
+	_ = conn.SetDeadline(totalDeadline) // restore total deadline
+	// If verack never arrived the peer may just be slow or chatty; proceed anyway.
+
 	res.HandshakeOK = true
 	res.ProtocolVersion = theirVersion.Version
 	res.Services = theirVersion.Services
@@ -242,7 +262,9 @@ func admitPeerAddr(a PeerAddr, acceptIPv6 bool) (string, bool) {
 }
 
 // readUntilVersion drains messages until we see a `version`. Useful when peers
-// send sendaddrv2 or other handshake frames before/after version.
+// send xversion (BIP-155 extended version) or other handshake frames before
+// the standard version message. xversion messages are acknowledged with xverack
+// so the peer doesn't drop the connection.
 func readUntilVersion(conn net.Conn) (*VersionInfo, error) {
 	for i := 0; i < 10; i++ {
 		cmd, payload, err := readMessage(conn)
@@ -251,6 +273,11 @@ func readUntilVersion(conn net.Conn) (*VersionInfo, error) {
 		}
 		if cmd == "version" {
 			return decodeVersion(payload)
+		}
+		// Some peers send xversion (BIP-155) before or alongside version.
+		// Acknowledge it so the peer doesn't drop us.
+		if cmd == "xversion" {
+			_ = writeMessage(conn, "xverack", nil)
 		}
 	}
 	return nil, errors.New("no version message in first 10 frames")
