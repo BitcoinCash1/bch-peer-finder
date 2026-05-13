@@ -95,7 +95,7 @@ score = mempool_count × 2
       + (bchd/knuth client    →  +500 + version_bonus (0-2000, relative within bchd/knuth) )
       + (flowee client        →  +250 + version_bonus (0-2000, relative within flowee) )
       + (verde/BU client      →  +100 + version_bonus (0-2000, relative within verde/BU) )
-      + (within 6 of tip      → +2000 ; ≤100 → +1000 ; >1000 → 0)
+      + (height sync           → +2000 at tip; −100/block behind; ≥20 blocks → disqualified )
       + (addrs shared         →  min(n, 50) )
       + (proto ≥ 70016        →  +100 )
       + (feefilter ≤ 1000     →  +200 )   ← ≤1 sat/byte, most permissive

@@ -372,7 +372,7 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	bchd/knuth client    →  +500 + version_bonus (0-2000, relative within bchd/knuth peers only)
 //	flowee client        →  +250 + version_bonus (0-2000, relative within flowee peers only)
 //	verde/BU client      →  +100 + version_bonus (0-2000, relative within verde/BU peers only)
-//	tip within 6 blocks  →  +2000  (≤100 still gets +1000; >1000 zeros score)
+//	height sync          →  +2000 at tip; −100/block behind; ≥20 blocks behind → disqualified
 //	addrs shared         →  + min(n, 50)     (weak signal; just rewards any gossip)
 //	protocol ≥ 70016     →  +100
 //	feefilter ≤1000      →  +200  (≤1 sat/byte — very permissive)
@@ -428,16 +428,20 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 
 	if refHeight > 0 && r.StartHeight > 0 {
 		diff := refHeight - r.StartHeight
-		if diff < 0 {
-			diff = -diff
-		}
-		switch {
-		case diff <= 6:
+		if diff <= 0 {
+			// Peer is at or ahead of the reference tip.  A negative diff just
+			// means a new block was mined while the crawl was running — reward
+			// it the same as a perfect sync.
 			score += 2000
-		case diff <= 100:
-			score += 1000
-		case diff > 1000:
-			return 0 // far behind — useless as addnode peer
+		} else {
+			// Each block behind the tip costs 100 pts.  Once that penalty
+			// consumes the full 2000-pt budget (≥20 blocks, ≈3.3 h) the peer
+			// is too stale to be a useful addnode target.
+			heightScore := 2000 - int(diff)*100
+			if heightScore <= 0 {
+				return 0
+			}
+			score += heightScore
 		}
 	}
 
