@@ -65,7 +65,7 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 
 	// Phase 2 — version handshake.
 	ourNonce := rand.Uint64()
-	verPayload := buildVersion(tcpAddr, ourNonce, "/bch-peer-finder:0.1.0/", 0, time.Now().Unix())
+	verPayload := buildVersion(tcpAddr, ourNonce, "/bch-peer-finder:1.0.0/", 0, time.Now().Unix())
 	if err := writeMessage(conn, "version", verPayload); err != nil {
 		res.Error = "send version: " + err.Error()
 		return res
