@@ -35,8 +35,8 @@ go build
 # Defaults: 80 workers, 3-minute crawl, top 50 peers
 ./bch-peer-finder
 
-# Aggressive: 200 workers, 10-minute crawl, top 100 peers
-./bch-peer-finder -workers 200 -duration 10m -top 100
+# Aggressive: 200 workers, 30-minute crawl, top 100 peers
+./bch-peer-finder -workers 200 -duration 30m -top 100
 
 # Just see what's out there, don't write files
 ./bch-peer-finder -out "" -json ""
