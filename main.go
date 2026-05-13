@@ -280,6 +280,8 @@ func writeOutputs(results []PeerResult, allPeers []PeerResult, refHeight int32, 
 // ---------------------------------------------------------------------------
 
 func main() {
+	start := time.Now()
+
 	var (
 		workers     = flag.Int("workers", 80, "concurrent peer probes")
 		duration    = flag.Duration("duration", 3*time.Minute, "total crawl time")
@@ -341,8 +343,9 @@ func main() {
 				return
 			case <-progressTicker.C:
 				k, t, p := am.Stats()
+				elapsed := int(time.Since(start).Seconds())
 				fmt.Printf("[t+%4ds] evaluated=%d  known=%d  tried=%d  pending=%d  median_height=%d\n",
-					int(time.Since(start).Seconds()), evaluated.Load(), k, t, p, heights.Median())
+					elapsed, evaluated.Load(), k, t, p, heights.Median())
 				if am.Exhausted() {
 					fmt.Println("\nall known peers tried — finishing early…")
 					cancel()
@@ -450,5 +453,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-
-var start = time.Now()
