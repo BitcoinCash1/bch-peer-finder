@@ -320,13 +320,11 @@ func isBCHUserAgent(ua string) bool {
 	// Whitelist of confirmed BCH clients
 	goodSubstr := []string{
 		"bitcoin cash node", // BCHN
-		"bchn",
-		"bchd",
-		"bch unlimited", // Bitcoin Unlimited's BCH client
-		"flowee",        // Flowee the Hub (BCH)
-		"bitcoin verde", // Verde (BCH)
-		"knuth",         // Knuth (kth)
-		"kth",
+		"bchd",              // BCH node in Go
+		"bch unlimited",     // Bitcoin Unlimited's BCH client
+		"flowee",            // Flowee the Hub (BCH)
+		"bitcoin verde",     // Verde (BCH)
+		"knuth",             // Knuth (kth)
 	}
 	for _, g := range goodSubstr {
 		if strings.Contains(lower, g) {
