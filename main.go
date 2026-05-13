@@ -59,6 +59,14 @@ func (a *AddrManager) Add(addr string) bool {
 	return true
 }
 
+// Exhausted returns true when every known address has been tried and the queue
+// is empty — i.e., no new work can arrive unless a worker adds more addresses.
+func (a *AddrManager) Exhausted() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return len(a.queued) == 0 && len(a.tried) >= len(a.known)
+}
+
 // Next pulls the head of the queue. Returns ("", false) when empty.
 func (a *AddrManager) Next() (string, bool) {
 	a.mu.Lock()
@@ -323,7 +331,7 @@ func main() {
 	// Worker pool
 	go runWorkers(ctx, *workers, am, results, *probeWindow, *acceptIPv6, evaluated)
 
-	// Periodic progress
+	// Periodic progress + early-exit when all known peers have been tried.
 	progressTicker := time.NewTicker(10 * time.Second)
 	defer progressTicker.Stop()
 	go func() {
@@ -335,6 +343,11 @@ func main() {
 				k, t, p := am.Stats()
 				fmt.Printf("[t+%4ds] evaluated=%d  known=%d  tried=%d  pending=%d  median_height=%d\n",
 					int(time.Since(start).Seconds()), evaluated.Load(), k, t, p, heights.Median())
+				if am.Exhausted() {
+					fmt.Println("\nall known peers tried — finishing early…")
+					cancel()
+					return
+				}
 			}
 		}
 	}()
