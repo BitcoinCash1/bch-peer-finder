@@ -132,11 +132,11 @@ BSV node achieves nothing for a BCH server).
 
 We filter at the user-agent layer:
 
-- **Accept**: `Bitcoin Cash Node`, `bchd`, `kth`, `Flowee`, `Bitcoin Verde`,
+- **Accept**: `Bitcoin Cash Node`, `bchd`, `Knuth`, `Flowee`, `Bitcoin Verde`,
   `Bitcoin Unlimited`.
 - **Reject**: anything containing `Bitcoin SV`, `BSV`, `eCash`, `Bitcoin ABC`.
 
-If a new BCH client appears, edit `isBCHUserAgent` in `peer.go`.
+If a new BCH client appears, update `goodSubstr` (in `isBCHUserAgent`), the `Software` enum, and the `Software.String()` switch in `peer.go`, the `computeScore` switch also in `peer.go`, and the user-agent detection switch in `main.go`.
 
 ## File layout
 
