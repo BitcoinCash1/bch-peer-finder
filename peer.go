@@ -35,7 +35,7 @@ type PeerResult struct {
 // Phases:
 //  1. TCP dial (5s timeout)
 //  2. Send version, await peer's version, send sendaddrv2 + verack
-//  3. Send filterload + mempool + getaddr + ping
+//  3. Send mempool + getaddr + ping
 //  4. Read messages for `probeWindow`, collecting addr/inv/pong data
 //
 // New peer addresses we learn via addr/addrv2 are pushed into the AddrManager.
