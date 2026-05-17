@@ -414,6 +414,7 @@ func parseVersion(ua string) (major, minor, patch int) {
 //	height sync          →  +2000 at tip; −100/block behind; ≥20 blocks behind → disqualified
 //	addrs shared         →  + min(n, 50)     (weak signal; just rewards any gossip)
 //	protocol ≥ 70016     →  +100
+//	BIP-155 / addrv2     →  +50
 //	feefilter ≤1000      →  +200  (≤1 sat/byte — very permissive)
 //	feefilter ≤10000     →  +150  (low-moderate)
 //	feefilter ≤100000    →  +75   (moderate)
