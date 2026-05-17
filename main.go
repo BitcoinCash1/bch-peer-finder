@@ -175,8 +175,8 @@ func writeOutputs(results []PeerResult, allPeers []PeerResult, refHeight int32, 
 	// Console table
 	fmt.Println()
 	fmt.Println("================ TOP BCH PEERS ================")
-	fmt.Printf(" rank │ score │ mempool │ height  │ rtt   │ fee-filter  │ user-agent\n")
-	fmt.Println("──────┼───────┼─────────┼─────────┼───────┼─────────────┼────────────")
+	fmt.Printf(" rank │ score │ mempool │ height  │  rtt   │   fee-filter    │ bip155 │ proto │ user-agent\n")
+	fmt.Println("──────┼───────┼─────────┼─────────┼────────┼─────────────────┼────────┼───────┼────────────")
 	for i, r := range results {
 		if i >= topN {
 			break
@@ -189,12 +189,16 @@ func writeOutputs(results []PeerResult, allPeers []PeerResult, refHeight int32, 
 		if r.LatencyMs > 0 {
 			rtt = fmt.Sprintf("%4dms", r.LatencyMs)
 		}
-		feeStr := "          -"
+		feeStr := "             -"
 		if r.FeeFilter > 0 {
-			feeStr = fmt.Sprintf("%5d sat/kB", r.FeeFilter)
+			feeStr = fmt.Sprintf("%8d sat/kB", r.FeeFilter)
 		}
-		fmt.Printf(" %4d │ %5d │ %7d │ %7d │ %s │ %s │ %s\n",
-			i+1, r.Score, r.MempoolCount, r.StartHeight, rtt, feeStr, ua)
+		bip155 := "  no  "
+		if r.BIP155 {
+			bip155 = "  yes "
+		}
+		fmt.Printf(" %4d │ %5d │ %7d │ %7d │ %s │ %s │ %s │ %5d │ %s\n",
+			i+1, r.Score, r.MempoolCount, r.StartHeight, rtt, feeStr, bip155, r.ProtocolVersion, ua)
 	}
 	fmt.Println()
 
@@ -244,8 +248,8 @@ func writeOutputs(results []PeerResult, allPeers []PeerResult, refHeight int32, 
 			if i >= topN {
 				break
 			}
-			fmt.Fprintf(f, "# score=%d mempool=%d height=%d latency=%dms ua=%s\n",
-				r.Score, r.MempoolCount, r.StartHeight, r.LatencyMs, r.UserAgent)
+			fmt.Fprintf(f, "# score=%d mempool=%d height=%d latency=%dms proto=%d bip155=%v ua=%s\n",
+				r.Score, r.MempoolCount, r.StartHeight, r.LatencyMs, r.ProtocolVersion, r.BIP155, r.UserAgent)
 			fmt.Fprintf(f, "addnode=%s\n\n", r.Address)
 		}
 		fmt.Printf("addnode list  -> %s\n", addnodeFile)

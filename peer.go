@@ -25,6 +25,7 @@ type PeerResult struct {
 	AddrsReceived   int       `json:"addrs_received"`
 	LatencyMs       int       `json:"latency_ms"`
 	FeeFilter       int64     `json:"fee_filter,omitempty"` // min fee rate in sat/kB as sent by peer; 0 = not received
+	BIP155          bool      `json:"bip155"`               // peer acknowledged sendaddrv2 (BIP-155)
 	Score           int       `json:"score"`
 	Software        Software  `json:"software"`
 	Error           string    `json:"error,omitempty"`
@@ -77,32 +78,42 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 		return res
 	}
 
-	// Per BIP-155, sendaddrv2 must arrive between version and verack.
-	_ = writeMessage(conn, "sendaddrv2", nil)
+	// BIP-155 requires sendaddrv2 to be sent between version and verack.
+	// However Knuth (proto 70013) does not support BIP-155 and drops the
+	// connection if it receives an unknown message before verack. So: only
+	// send sendaddrv2 pre-verack for peers on proto ≥ 70016.
+	if theirVersion.Version >= 70016 {
+		_ = writeMessage(conn, "sendaddrv2", nil)
+	}
 	if err := writeMessage(conn, "verack", nil); err != nil {
 		res.Error = "send verack: " + err.Error()
 		return res
 	}
 
-	// Wait for the peer's verack before proceeding to Phase 3.
-	// Some peers don't process requests until their handshake is complete.
-	// Drain messages until we see verack (or xversion, which some peers send here).
+	// Wait for peer's verack. Messages arriving before verack (sendcmpct,
+	// sendheaders, feefilter, ping from some peers) are buffered so Phase 4
+	// can process them — dropping them here was causing missing RTT/feefilter.
+	type bufferedMsg struct {
+		cmd     string
+		payload []byte
+	}
+	var preVerack []bufferedMsg
 	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	for i := 0; i < 10; i++ {
-		cmd, _, err := readMessage(conn)
+		cmd, payload, err := readMessage(conn)
 		if err != nil {
 			break
 		}
 		if cmd == "verack" {
 			break
 		}
-		// xversion (BIP-155 extended version) can arrive here; be polite and reply.
 		if cmd == "xversion" {
 			_ = writeMessage(conn, "xverack", nil)
+			continue
 		}
+		preVerack = append(preVerack, bufferedMsg{cmd, payload})
 	}
 	_ = conn.SetDeadline(totalDeadline) // restore total deadline
-	// If verack never arrived the peer may just be slow or chatty; proceed anyway.
 
 	res.HandshakeOK = true
 	res.ProtocolVersion = theirVersion.Version
@@ -120,18 +131,14 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 	pingSent := time.Now()
 	_ = writeMessage(conn, "ping", pingPayload)
 
-	// Phase 4 — read messages for the probe window.
+	// Phase 4 — process buffered pre-verack messages then read the probe window.
 	probeDeadline := time.Now().Add(probeWindow)
 	_ = conn.SetReadDeadline(probeDeadline)
 
 	gotPong := false
-	for time.Now().Before(probeDeadline) {
-		cmd, payload, err := readMessage(conn)
-		if err != nil {
-			break
-		}
-		switch cmd {
 
+	processMsg := func(cmd string, payload []byte) {
+		switch cmd {
 		case "addr":
 			if addrs, err := decodeAddr(payload); err == nil {
 				for _, a := range addrs {
@@ -141,8 +148,8 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 					}
 				}
 			}
-
 		case "addrv2":
+			res.BIP155 = true
 			if addrs, err := decodeAddrV2(payload); err == nil {
 				for _, a := range addrs {
 					if s, ok := admitPeerAddr(a, acceptIPv6); ok {
@@ -151,12 +158,10 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 					}
 				}
 			}
-
 		case "inv":
 			if n, err := decodeInvTxCount(payload); err == nil {
 				res.MempoolCount += n
 			}
-
 		case "pong":
 			if !gotPong && len(payload) >= 8 {
 				if binary.LittleEndian.Uint64(payload[:8]) == pingNonce {
@@ -164,11 +169,8 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 					gotPong = true
 				}
 			}
-
 		case "ping":
-			// Be polite — echo the nonce back so the peer doesn't drop us.
 			_ = writeMessage(conn, "pong", payload)
-
 		case "feefilter":
 			if len(payload) >= 8 && res.FeeFilter == 0 {
 				v := int64(binary.LittleEndian.Uint64(payload[:8]))
@@ -176,10 +178,18 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 					res.FeeFilter = v
 				}
 			}
-
-		default:
-			// Drain anything else (sendcmpct, sendheaders, xversion …).
 		}
+	}
+
+	for _, m := range preVerack {
+		processMsg(m.cmd, m.payload)
+	}
+	for time.Now().Before(probeDeadline) {
+		cmd, payload, err := readMessage(conn)
+		if err != nil {
+			break
+		}
+		processMsg(cmd, payload)
 	}
 
 	return res
@@ -476,6 +486,9 @@ func computeScore(r *PeerResult, refHeight int32, versionStats map[Software]stru
 
 	if r.ProtocolVersion >= 70016 {
 		score += 100
+	}
+	if r.BIP155 {
+		score += 50
 	}
 
 	// feefilter: lower = more permissive = better addnode peer.
