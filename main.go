@@ -296,7 +296,7 @@ func main() {
 		maxKnown    = flag.Int("max-known", 50000, "ceiling on candidate addresses tracked")
 		acceptIPv6  = flag.Bool("ipv6", false, "also crawl and rank IPv6 peers (default IPv4 only)")
 		userAgents  = flag.Bool("user-agents", false, "show all observed user-agents with counter")
-		noDiscovery = flag.Bool("no-discovery", false, "only probe the bootstrap seed addresses, ignore addr/addrv2 messages")
+		noDiscovery = flag.Bool("no-discovery", false, "only probe the bootstrap seed addresses (by default discover new peers)")
 	)
 	flag.Parse()
 

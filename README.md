@@ -40,21 +40,25 @@ go build
 
 # Just see what's out there, display all found user-agents, don't write files
 ./bch-peer-finder -out "" -json "" -user-agents
+
+# Test only the hardcoded seed IPs without crawling the wider network
+./bch-peer-finder -no-discovery
 ```
 
 ### Flags
 
-| Flag           | Default             | Meaning                                            |
-| -------------- | ------------------- | -------------------------------------------------- |
-| `-workers`     | 80                  | Concurrent peer probes                             |
-| `-duration`    | 3m                  | Total crawl wall-clock time                        |
-| `-probe`       | 12s                 | Per-peer read window after handshake               |
-| `-top`         | 50                  | Number of peers to keep in the ranked output       |
-| `-out`         | `bch-addnodes.conf` | `addnode=`-formatted output file                   |
-| `-json`        | `bch-peers.json`    | Full JSON dump of every scored peer                |
-| `-max-known`   | 50000               | Cap on the candidate address pool                  |
-| `-ipv6`        | false               | Also crawl and rank IPv6 peers (default IPv4 only) |
-| `-user-agents` | false               | Show observed user-agent display with counter      |
+| Flag            | Default             | Meaning                                                                                                    |
+| --------------- | ------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `-workers`      | 80                  | Concurrent peer probes                                                                                     |
+| `-duration`     | 3m                  | Total crawl wall-clock time                                                                                |
+| `-probe`        | 12s                 | Per-peer read window after handshake                                                                       |
+| `-top`          | 50                  | Number of peers to keep in the ranked output                                                               |
+| `-out`          | `bch-addnodes.conf` | `addnode=`-formatted output file                                                                           |
+| `-json`         | `bch-peers.json`    | Full JSON dump of every scored peer                                                                        |
+| `-max-known`    | 50000               | Cap on the candidate address pool                                                                          |
+| `-ipv6`         | false               | Also crawl and rank IPv6 peers (default IPv4 only)                                                         |
+| `-user-agents`  | false               | Show observed user-agent display with counter                                                              |
+| `-no-discovery` | false               | Only probe the bootstrap seed addresses; ignore `addr`/`addrv2` messages (useful for testing specific IPs) |
 
 Send `SIGINT` (Ctrl-C) and it'll stop early and still write whatever it has.
 
@@ -62,19 +66,19 @@ Send `SIGINT` (Ctrl-C) and it'll stop early and still write whatever it has.
 
 A typical run finishes with a console table like (example):
 
-| rank | score | mempool | height |  rtt | fee-filter | user-agent                         |
-| ---: | ----: | ------: | -----: | ---: | ---------: | ---------------------------------- |
-|    1 |  4412 |     132 | 950752 | 42ms |   0 sat/kB | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
-|    2 |  4357 |     120 | 950752 | 51ms | 100 sat/kB | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
-|    3 |  4087 |     119 | 950752 | 88ms |          - | /bchd:0.22.0(EB32.0)/              |
+| rank | score | mempool | height |  rtt | fee-filter | bip155 | proto | user-agent                         |
+| ---: | ----: | ------: | -----: | ---: | ---------: | -----: | ----: | ---------------------------------- |
+|    1 |  4412 |     132 | 950752 | 42ms |   0 sat/kB |    yes | 70016 | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
+|    2 |  4357 |     120 | 950752 | 51ms | 100 sat/kB |    yes | 70016 | /Bitcoin Cash Node:29.0.0(EB32.0)/ |
+|    3 |  4087 |     119 | 950752 | 88ms |          - |    yes | 70016 | /bchd:0.22.0(EB32.0)/              |
 
 ...and a file `bch-addnodes.conf` containing (limited to `-top` flag peer results, by default 50):
 
 ```conf
-# score=4212 mempool=132 height=950752 latency=116ms ua=/Bitcoin Cash Node:29.0.0(EB32.0)/
+# score=4212 mempool=132 height=950752 latency=116ms proto=70016 bip155=true ua=/Bitcoin Cash Node:29.0.0(EB32.0)/
 addnode=70.50.144.93:8999
 
-# score=4207 mempool=120 height=950752 latency=170ms ua=/Bitcoin Cash Node:29.0.0(EB32.0)/
+# score=4207 mempool=120 height=950752 latency=170ms proto=70016 bip155=true ua=/Bitcoin Cash Node:29.0.0(EB32.0)/
 addnode=8.214.158.13:8363
 ```
 
