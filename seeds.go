@@ -26,9 +26,13 @@ var MainnetDNSSeeds = []string{
 // src/chainparamsseeds.h — too large to inline here verbatim. The four entries
 // below are intentionally a tiny safety net; once DNS works you'll get
 // hundreds within seconds.
+//
+// Values must be "ip:port"
 var MainnetHardcodedSeeds = []string{
 	// Add IPs here if you want offline-DNS bootstrap, e.g.:
-	// "203.0.113.4:8333",
+	// "66.172.112.151:8333",
+	// "66.172.112.154:8333",
+	// "66.172.112.251:8333",
 }
 
 const DefaultMainnetPort = 8333

@@ -42,7 +42,7 @@ type PeerResult struct {
 // New peer addresses we learn via addr/addrv2 are pushed into the AddrManager.
 // When acceptIPv6 is false (default), only routable IPv4 peers are admitted —
 // this matches the original behaviour. Set it to true to also accept IPv6.
-func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWindow time.Duration, acceptIPv6 bool) PeerResult {
+func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWindow time.Duration, acceptIPv6 bool, noDiscovery bool) PeerResult {
 	res := PeerResult{Address: address, Timestamp: time.Now()}
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", address)
@@ -143,7 +143,9 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 			if addrs, err := decodeAddr(payload); err == nil {
 				for _, a := range addrs {
 					if s, ok := admitPeerAddr(a, acceptIPv6); ok {
-						am.Add(s)
+						if !noDiscovery {
+							am.Add(s)
+						}
 						res.AddrsReceived++
 					}
 				}
@@ -153,7 +155,9 @@ func evaluatePeer(ctx context.Context, address string, am *AddrManager, probeWin
 			if addrs, err := decodeAddrV2(payload); err == nil {
 				for _, a := range addrs {
 					if s, ok := admitPeerAddr(a, acceptIPv6); ok {
-						am.Add(s)
+						if !noDiscovery {
+							am.Add(s)
+						}
 						res.AddrsReceived++
 					}
 				}

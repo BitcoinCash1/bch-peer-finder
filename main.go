@@ -94,7 +94,7 @@ func (a *AddrManager) Stats() (known, tried, pending int) {
 // ---------------------------------------------------------------------------
 
 func runWorkers(ctx context.Context, n int, am *AddrManager, results chan<- PeerResult,
-	probeWindow time.Duration, acceptIPv6 bool, evaluated *atomic.Int64) {
+	probeWindow time.Duration, acceptIPv6 bool, noDiscovery bool, evaluated *atomic.Int64) {
 
 	var wg sync.WaitGroup
 	for i := 0; i < n; i++ {
@@ -117,7 +117,7 @@ func runWorkers(ctx context.Context, n int, am *AddrManager, results chan<- Peer
 					}
 					continue
 				}
-				res := evaluatePeer(ctx, addr, am, probeWindow, acceptIPv6)
+				res := evaluatePeer(ctx, addr, am, probeWindow, acceptIPv6, noDiscovery)
 				evaluated.Add(1)
 				select {
 				case results <- res:
@@ -296,6 +296,7 @@ func main() {
 		maxKnown    = flag.Int("max-known", 50000, "ceiling on candidate addresses tracked")
 		acceptIPv6  = flag.Bool("ipv6", false, "also crawl and rank IPv6 peers (default IPv4 only)")
 		userAgents  = flag.Bool("user-agents", false, "show all observed user-agents with counter")
+		noDiscovery = flag.Bool("no-discovery", false, "only probe the bootstrap seed addresses, ignore addr/addrv2 messages")
 	)
 	flag.Parse()
 
@@ -335,7 +336,7 @@ func main() {
 	evaluated := &atomic.Int64{}
 
 	// Worker pool
-	go runWorkers(ctx, *workers, am, results, *probeWindow, *acceptIPv6, evaluated)
+	go runWorkers(ctx, *workers, am, results, *probeWindow, *acceptIPv6, *noDiscovery, evaluated)
 
 	// Periodic progress + early-exit when all known peers have been tried.
 	progressTicker := time.NewTicker(10 * time.Second)
